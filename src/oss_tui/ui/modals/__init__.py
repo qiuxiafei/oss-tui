@@ -2,6 +2,7 @@
 
 from oss_tui.ui.modals.confirm import ConfirmModal
 from oss_tui.ui.modals.help import HelpModal
+from oss_tui.ui.modals.input import InputModal
 from oss_tui.ui.modals.preview import PreviewModal
 
-__all__ = ["ConfirmModal", "HelpModal", "PreviewModal"]
+__all__ = ["ConfirmModal", "HelpModal", "InputModal", "PreviewModal"]

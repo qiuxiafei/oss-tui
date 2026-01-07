@@ -26,8 +26,8 @@
 - [ ] Add loading indicators for async operations
 
 ### File Operations
-- [ ] Download file (`D` key)
-- [ ] Upload file (`u` key)
+- [x] Download file (`D` key)
+- [x] Upload file (`u` key)
 - [ ] Delete file/directory (`d` key with confirmation)
 - [ ] Copy file (`y` to yank, `p` to paste)
 - [ ] Rename/move file
@@ -95,3 +95,5 @@
 - [x] Configuration-based provider selection (from config.toml)
 - [x] Command-line arguments (`-c/--config`, `-a/--account`)
 - [x] Account switching with `a` key (cycles through configured accounts)
+- [x] Download file (`D` key) with path input modal
+- [x] Upload file (`u` key) with path input modal

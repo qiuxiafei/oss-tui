@@ -47,6 +47,8 @@ class FileList(ListView):
         ("home", "go_top", "Top"),
         ("end", "go_bottom", "Bottom"),
         ("space", "preview", "Preview"),
+        ("D", "download", "Download"),
+        ("u", "upload", "Upload"),
     ]
 
     class DirectoryEntered(Message):
@@ -75,6 +77,30 @@ class FileList(ListView):
             """
             super().__init__()
             self.obj = obj
+
+    class DownloadRequested(Message):
+        """Message sent when file download is requested."""
+
+        def __init__(self, obj: Object) -> None:
+            """Initialize the message.
+
+            Args:
+                obj: The object to download.
+            """
+            super().__init__()
+            self.obj = obj
+
+    class UploadRequested(Message):
+        """Message sent when file upload is requested."""
+
+        def __init__(self, current_path: str) -> None:
+            """Initialize the message.
+
+            Args:
+                current_path: The current path in the bucket.
+            """
+            super().__init__()
+            self.current_path = current_path
 
     def __init__(self, *args, **kwargs) -> None:
         """Initialize the file list."""
@@ -163,6 +189,20 @@ class FileList(ListView):
                 # Only preview files, not directories
                 if not obj.is_directory:
                     self.post_message(self.PreviewRequested(obj))
+
+    def action_download(self) -> None:
+        """Request download of the current item."""
+        if self.index is not None and self._nodes:
+            item = self._nodes[self.index]
+            if isinstance(item, FileListItem):
+                obj = item.obj
+                # Only download files, not directories
+                if not obj.is_directory:
+                    self.post_message(self.DownloadRequested(obj))
+
+    def action_upload(self) -> None:
+        """Request upload to current path."""
+        self.post_message(self.UploadRequested(self._current_path))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle item selection."""

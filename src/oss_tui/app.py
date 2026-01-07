@@ -1,5 +1,7 @@
 """Main Textual application for OSS-TUI."""
 
+from pathlib import Path
+
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -9,10 +11,14 @@ from oss_tui.config.loader import get_account_config, get_account_names, load_co
 from oss_tui.config.settings import AppConfig
 from oss_tui.providers import create_provider
 from oss_tui.providers.factory import OSSProviderProtocol
+from oss_tui.ui.modals.input import InputModal
 from oss_tui.ui.modals.preview import MAX_PREVIEW_SIZE, PreviewModal
 from oss_tui.ui.widgets.bucket_list import BucketList
 from oss_tui.ui.widgets.file_list import FileList
 from oss_tui.ui.widgets.search_input import SearchInput
+
+# Default download directory
+DEFAULT_DOWNLOAD_DIR = Path.home() / "Downloads"
 
 
 class OssTuiApp(App):
@@ -388,3 +394,127 @@ class OssTuiApp(App):
             )
         except Exception as e:
             self.notify(f"Error switching account: {e}", severity="error")
+
+    def on_file_list_download_requested(
+        self, event: FileList.DownloadRequested
+    ) -> None:
+        """Handle file download request."""
+        obj = event.obj
+
+        if not self._current_bucket:
+            return
+
+        # Determine default download path
+        download_dir = DEFAULT_DOWNLOAD_DIR
+        if not download_dir.exists():
+            download_dir = Path.home()
+
+        default_path = str(download_dir / obj.name)
+
+        # Show input modal for download path
+        def handle_download_path(path: str | None) -> None:
+            if path is None:
+                return  # User cancelled
+
+            self._do_download(obj.key, path)
+
+        self.push_screen(
+            InputModal(
+                prompt=f"Download '{obj.name}' to:",
+                default=default_path,
+                placeholder="Enter local file path",
+            ),
+            handle_download_path,
+        )
+
+    def _do_download(self, key: str, local_path: str) -> None:
+        """Perform the actual download.
+
+        Args:
+            key: The object key to download.
+            local_path: The local file path to save to.
+        """
+        if not self._current_bucket:
+            return
+
+        try:
+            # Get object content
+            self.notify("Downloading...", severity="information")
+            content = self.provider.get_object(self._current_bucket, key)
+
+            # Write to local file
+            path = Path(local_path).expanduser()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+
+            self.notify(
+                f"Downloaded to: {path}",
+                severity="information",
+            )
+        except Exception as e:
+            self.notify(f"Download failed: {e}", severity="error")
+
+    def on_file_list_upload_requested(
+        self, event: FileList.UploadRequested
+    ) -> None:
+        """Handle file upload request."""
+        if not self._current_bucket:
+            self.notify("Please select a bucket first", severity="warning")
+            return
+
+        # Show input modal for local file path
+        def handle_upload_path(path: str | None) -> None:
+            if path is None:
+                return  # User cancelled
+
+            self._do_upload(path, event.current_path)
+
+        self.push_screen(
+            InputModal(
+                prompt="Upload file from:",
+                default="",
+                placeholder="Enter local file path",
+            ),
+            handle_upload_path,
+        )
+
+    def _do_upload(self, local_path: str, remote_prefix: str) -> None:
+        """Perform the actual upload.
+
+        Args:
+            local_path: The local file path to upload.
+            remote_prefix: The remote path prefix in the bucket.
+        """
+        if not self._current_bucket:
+            return
+
+        try:
+            # Read local file
+            path = Path(local_path).expanduser()
+            if not path.exists():
+                self.notify(f"File not found: {path}", severity="error")
+                return
+
+            if path.is_dir():
+                self.notify("Cannot upload directories", severity="error")
+                return
+
+            self.notify("Uploading...", severity="information")
+            content = path.read_bytes()
+
+            # Determine remote key
+            remote_key = remote_prefix + path.name
+
+            # Upload to OSS
+            self.provider.put_object(self._current_bucket, remote_key, content)
+
+            self.notify(
+                f"Uploaded: {path.name} -> {remote_key}",
+                severity="information",
+            )
+
+            # Refresh the file list
+            self._load_objects(self._current_bucket, remote_prefix)
+
+        except Exception as e:
+            self.notify(f"Upload failed: {e}", severity="error")
