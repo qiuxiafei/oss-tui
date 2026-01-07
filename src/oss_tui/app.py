@@ -5,7 +5,10 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header, Static
 
-from oss_tui.providers.filesystem import FilesystemProvider
+from oss_tui.config.loader import get_account_config, get_account_names, load_config
+from oss_tui.config.settings import AppConfig
+from oss_tui.providers import create_provider
+from oss_tui.providers.factory import OSSProviderProtocol
 from oss_tui.ui.modals.preview import MAX_PREVIEW_SIZE, PreviewModal
 from oss_tui.ui.widgets.bucket_list import BucketList
 from oss_tui.ui.widgets.file_list import FileList
@@ -97,16 +100,33 @@ class OssTuiApp(App):
         Binding("tab", "switch_pane", "Switch Pane"),
         Binding("slash", "start_search", "Search"),
         Binding("escape", "cancel_search", "Cancel", show=False),
+        Binding("a", "switch_account", "Account"),
     ]
 
-    def __init__(self, root: str | None = None) -> None:
+    def __init__(
+        self,
+        config: AppConfig | None = None,
+        account: str | None = None,
+    ) -> None:
         """Initialize the application.
 
         Args:
-            root: Root directory for FilesystemProvider. Defaults to home.
+            config: Application configuration. If not provided, loads from file.
+            account: Account name to use. If not provided, uses default from config.
         """
         super().__init__()
-        self.provider = FilesystemProvider(root=root)
+
+        # Load configuration
+        self._config = config or load_config()
+
+        # Get account configuration
+        self._account_name, account_config = get_account_config(
+            self._config, account
+        )
+
+        # Create provider from configuration
+        self.provider: OSSProviderProtocol = create_provider(account_config)
+
         self._current_bucket: str | None = None
         self._current_path: str = ""
         self._search_active: bool = False
@@ -320,3 +340,51 @@ class OssTuiApp(App):
             self.push_screen(PreviewModal(obj, content, is_truncated))
         except Exception as e:
             self.notify(f"Error loading preview: {e}", severity="error")
+
+    def action_switch_account(self) -> None:
+        """Switch to the next available account."""
+        accounts = get_account_names(self._config)
+
+        if len(accounts) <= 1:
+            self.notify("No other accounts configured", severity="warning")
+            return
+
+        # Find current account index and get next one
+        try:
+            current_idx = accounts.index(self._account_name)
+            next_idx = (current_idx + 1) % len(accounts)
+        except ValueError:
+            next_idx = 0
+
+        next_account = accounts[next_idx]
+        _, account_config = get_account_config(self._config, next_account)
+
+        try:
+            # Create new provider
+            self.provider = create_provider(account_config)
+            self._account_name = next_account
+
+            # Clear current state
+            self._current_bucket = None
+            self._current_path = ""
+
+            # Clear file list
+            file_list = self.query_one("#file-list", FileList)
+            file_list.clear_all()
+
+            # Update path bar
+            path_bar = self.query_one("#path-bar", Static)
+            path_bar.update("")
+
+            # Reload buckets
+            self._load_buckets()
+
+            # Focus bucket list
+            self.query_one("#bucket-list", BucketList).focus()
+
+            self.notify(
+                f"Switched to account: {next_account} ({account_config.provider})",
+                severity="information",
+            )
+        except Exception as e:
+            self.notify(f"Error switching account: {e}", severity="error")

@@ -3,7 +3,7 @@
 import tomllib
 from pathlib import Path
 
-from oss_tui.config.settings import AppConfig
+from oss_tui.config.settings import AccountConfig, AppConfig
 from oss_tui.exceptions import ConfigurationError
 
 # Config file search paths in order of priority
@@ -53,3 +53,42 @@ def load_config(path: Path | None = None) -> AppConfig:
         raise ConfigurationError(f"Invalid TOML in {path}: {e}") from e
     except Exception as e:
         raise ConfigurationError(f"Failed to load config from {path}: {e}") from e
+
+
+def get_account_config(
+    config: AppConfig, account_name: str | None = None
+) -> tuple[str, AccountConfig]:
+    """Get account configuration by name or use default.
+
+    Args:
+        config: The application configuration.
+        account_name: Optional account name. If not provided, uses default.
+
+    Returns:
+        Tuple of (account_name, account_config).
+
+    Raises:
+        ConfigurationError: If the account is not found.
+    """
+    if account_name is None:
+        account_name = config.default.account
+
+    if account_name not in config.accounts:
+        available = ", ".join(config.accounts.keys()) or "none"
+        raise ConfigurationError(
+            f"Account '{account_name}' not found. Available accounts: {available}"
+        )
+
+    return account_name, config.accounts[account_name]
+
+
+def get_account_names(config: AppConfig) -> list[str]:
+    """Get list of configured account names.
+
+    Args:
+        config: The application configuration.
+
+    Returns:
+        List of account names.
+    """
+    return list(config.accounts.keys())

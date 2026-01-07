@@ -133,6 +133,14 @@ class FileList(ListView):
         self._filter_query = ""
         self._refresh_display(self._objects)
 
+    def clear_all(self) -> None:
+        """Clear all objects from the list."""
+        self._objects = []
+        self._filtered_objects = []
+        self._current_path = ""
+        self._filter_query = ""
+        self.clear()
+
     def action_go_top(self) -> None:
         """Go to the first item."""
         self.index = 0

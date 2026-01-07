@@ -52,3 +52,5 @@ Thumbs.db
 # Project specific
 config.toml
 .oss-tui.toml
+.env
+.env.*

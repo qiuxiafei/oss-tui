@@ -7,9 +7,19 @@
 ## High Priority
 
 ### Provider Implementation
-- [ ] Implement AliyunOSSProvider (Alibaba Cloud OSS)
-- [ ] Add provider factory/registry for dynamic provider loading
-- [ ] Add configuration-based provider selection
+- [x] Implement AliyunOSSProvider (Alibaba Cloud OSS)
+  - [x] All CRUD operations (list_buckets, list_objects, get/put/delete/copy_object)
+  - [x] Cross-region bucket access (auto-detect bucket location)
+  - [x] Bucket object caching
+  - [x] Exception handling (convert oss2 exceptions to custom exceptions)
+  - [x] Unit tests with mocking
+  - [x] Integration tests (require OSS credentials)
+- [x] Add provider factory/registry for dynamic provider loading
+- [x] Add configuration-based provider selection
+
+### Future Provider Improvements
+- [ ] Optimize bucket cache strategy (LRU, TTL)
+- [ ] Large file streaming support for get_object
 
 ### UI Features
 - [ ] Implement `Ctrl+d` / `Ctrl+u` for page down/up
@@ -26,7 +36,7 @@
 
 ### UI Enhancements
 - [ ] Add help modal (`?` key) with full keybinding reference
-- [ ] Add account/provider switching (`a` key)
+- [x] Add account/provider switching (`a` key)
 - [ ] Implement multi-select (need new keybinding, `Space` now used for preview)
 - [ ] Add breadcrumb navigation in path bar
 - [ ] Improve styling and color scheme
@@ -38,15 +48,15 @@
 - [ ] Implement COSProvider (Tencent Cloud COS)
 
 ### Configuration
-- [ ] Load provider config from config.toml
-- [ ] Support multiple accounts/profiles
-- [ ] Add command-line arguments for provider/root selection
+- [x] Load provider config from config.toml
+- [x] Support multiple accounts/profiles
+- [x] Add command-line arguments for provider/root selection
 
 ## Low Priority
 
 ### Testing
 - [ ] Add TUI integration tests using textual's test framework
-- [ ] Add AliyunOSSProvider unit tests (with mocking)
+- [x] Add AliyunOSSProvider unit tests (with mocking)
 - [ ] Increase test coverage
 
 ### Documentation
@@ -80,3 +90,8 @@
   - Vim-style scrolling (j/k/g/G/Ctrl+d/u) in preview
   - ESC/q to close preview
 - [x] File size and date columns in file list
+- [x] AliyunOSSProvider full implementation with cross-region support
+- [x] Provider factory/registry for dynamic provider loading
+- [x] Configuration-based provider selection (from config.toml)
+- [x] Command-line arguments (`-c/--config`, `-a/--account`)
+- [x] Account switching with `a` key (cycles through configured accounts)

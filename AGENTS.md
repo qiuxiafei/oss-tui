@@ -235,6 +235,7 @@ See `config.example.toml` for format details.
 2. Update `TODO.md` to reflect completed tasks and any new tasks discovered
 3. Run `uv run ruff check .` and `uv run pyright` to ensure code quality
 4. Run `uv run pytest` to ensure all tests pass
+5. Check if there's any confidential information like Access Key ID, Secret Access Key, or any other sensitive information in code, config file or commit message.
 
 This ensures project documentation stays in sync with the codebase.
 
