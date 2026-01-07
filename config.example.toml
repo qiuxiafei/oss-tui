@@ -1,0 +1,45 @@
+# OSS-TUI Configuration Example
+# Copy this file to ~/.config/oss-tui/config.toml or ~/.oss-tui.toml
+
+# Default settings
+[default]
+# Default provider type: "filesystem", "aliyun", "s3", "minio", "cos"
+provider = "filesystem"
+
+# Default account to use (must match a key in [accounts])
+account = "local"
+
+# Filesystem provider account (for development/testing)
+[accounts.local]
+provider = "filesystem"
+# Root directory to browse (defaults to home directory if not specified)
+root = "~"
+
+# Alibaba Cloud OSS account example
+[accounts.aliyun-personal]
+provider = "aliyun"
+endpoint = "oss-cn-hangzhou.aliyuncs.com"
+access_key_id = "your-access-key-id"
+access_key_secret = "your-access-key-secret"
+
+# Another Alibaba Cloud OSS account example
+[accounts.aliyun-work]
+provider = "aliyun"
+endpoint = "oss-cn-shanghai.aliyuncs.com"
+access_key_id = "work-access-key-id"
+access_key_secret = "work-access-key-secret"
+
+# AWS S3 account example (future)
+# [accounts.aws]
+# provider = "s3"
+# region = "us-east-1"
+# access_key_id = "your-aws-access-key"
+# secret_access_key = "your-aws-secret-key"
+
+# MinIO account example (future)
+# [accounts.minio]
+# provider = "minio"
+# endpoint = "localhost:9000"
+# access_key = "minioadmin"
+# secret_key = "minioadmin"
+# secure = false
