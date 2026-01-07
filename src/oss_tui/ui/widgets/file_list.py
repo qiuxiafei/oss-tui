@@ -1,6 +1,30 @@
 """File list widget."""
 
-from textual.widgets import ListView
+from textual.message import Message
+from textual.widgets import ListItem, ListView, Static
+
+from oss_tui.models.object import Object
+from oss_tui.utils.formatting import format_size
+
+
+class FileListItem(ListItem):
+    """A list item representing a file or directory."""
+
+    def __init__(self, obj: Object) -> None:
+        """Initialize the file list item.
+
+        Args:
+            obj: The object to display.
+        """
+        super().__init__()
+        self.obj = obj
+
+    def compose(self):
+        """Compose the list item."""
+        icon = "/" if self.obj.is_directory else " "
+        size = "" if self.obj.is_directory else format_size(self.obj.size)
+        # Format: icon name              size
+        yield Static(f"{icon} {self.obj.name:<40} {size:>10}")
 
 
 class FileList(ListView):
@@ -15,8 +39,51 @@ class FileList(ListView):
         ("g", "go_top", "Top"),
         ("G", "go_bottom", "Bottom"),
         ("l", "select_cursor", "Enter"),
+        ("enter", "select_cursor", "Enter"),
         ("h", "go_back", "Back"),
+        ("backspace", "go_back", "Back"),
+        ("home", "go_top", "Top"),
+        ("end", "go_bottom", "Bottom"),
     ]
+
+    class DirectoryEntered(Message):
+        """Message sent when entering a directory."""
+
+        def __init__(self, path: str) -> None:
+            """Initialize the message.
+
+            Args:
+                path: The directory path to enter.
+            """
+            super().__init__()
+            self.path = path
+
+    class GoBack(Message):
+        """Message sent when going back to parent directory."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialize the file list."""
+        super().__init__(*args, **kwargs)
+        self._objects: list[Object] = []
+        self._current_path: str = ""
+
+    @property
+    def current_path(self) -> str:
+        """Get the current path."""
+        return self._current_path
+
+    def load_objects(self, objects: list[Object], path: str = "") -> None:
+        """Load objects into the list.
+
+        Args:
+            objects: List of objects to display.
+            path: Current path in the bucket.
+        """
+        self._objects = objects
+        self._current_path = path
+        self.clear()
+        for obj in objects:
+            self.append(FileListItem(obj))
 
     def action_go_top(self) -> None:
         """Go to the first item."""
@@ -29,5 +96,11 @@ class FileList(ListView):
 
     def action_go_back(self) -> None:
         """Go back to parent directory."""
-        # TODO: Implement navigation to parent
-        pass
+        self.post_message(self.GoBack())
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Handle item selection."""
+        if isinstance(event.item, FileListItem):
+            obj = event.item.obj
+            if obj.is_directory:
+                self.post_message(self.DirectoryEntered(obj.key))
