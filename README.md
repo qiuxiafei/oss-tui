@@ -1,5 +1,10 @@
 # OSS-TUI
 
+This is an trial on Vibe-Coding with OpenCode as the CLI tool, Claude Opus 4.5 as the backend model and Typeless as the input method.
+Here is the share link: https://opncd.ai/share/2nmbG0HX.
+
+-- 
+
 A terminal user interface (TUI) client for object storage services.
 
 Built with Python and [Textual](https://textual.textualize.io/), OSS-TUI provides a LazyGit-style interface with Vim keybindings for managing your cloud storage.
