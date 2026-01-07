@@ -32,6 +32,7 @@ class PreviewModal(ModalScreen[None]):
         Binding("G", "scroll_end", "Bottom", show=False),
         Binding("escape", "close", "Close"),
         Binding("q", "close", "Close"),
+        Binding("space", "close", "Close", show=False),
     ]
 
     CSS = """
@@ -97,7 +98,7 @@ class PreviewModal(ModalScreen[None]):
             yield Static(f"Preview: {self.obj.name}", id="preview-header")
             with VerticalScroll(id="preview-scroll"):
                 yield Static("", id="preview-content")
-            footer_text = "[j/k] Scroll  [g/G] Top/Bottom  [ESC/q] Close"
+            footer_text = "[j/k] Scroll  [g/G] Top/Bottom  [Space/ESC/q] Close"
             if self.is_truncated:
                 footer_text = f"[Truncated to {format_size(MAX_PREVIEW_SIZE)}]  " + footer_text
             yield Static(footer_text, id="preview-footer")
