@@ -4,7 +4,7 @@ from textual.message import Message
 from textual.widgets import ListItem, ListView, Static
 
 from oss_tui.models.object import Object
-from oss_tui.utils.formatting import format_size
+from oss_tui.utils.formatting import format_size, format_time
 
 
 class FileListItem(ListItem):
@@ -23,8 +23,10 @@ class FileListItem(ListItem):
         """Compose the list item."""
         icon = "/" if self.obj.is_directory else " "
         size = "" if self.obj.is_directory else format_size(self.obj.size)
-        # Format: icon name              size
-        yield Static(f"{icon} {self.obj.name:<40} {size:>10}")
+        date = format_time(self.obj.last_modified)
+        # Format: icon name                    size        date
+        # Use fixed widths for proper column alignment
+        yield Static(f"{icon} {self.obj.name:<30} {size:>10}  {date:>10}")
 
 
 class FileList(ListView):

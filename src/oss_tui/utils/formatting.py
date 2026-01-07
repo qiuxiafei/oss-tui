@@ -22,15 +22,18 @@ def format_size(size_bytes: int) -> str:
         return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
 
 
-def format_time(dt: datetime | None) -> str:
+def format_time(dt: datetime | None, include_time: bool = False) -> str:
     """Format datetime for display.
 
     Args:
         dt: Datetime to format, or None.
+        include_time: Whether to include time in the output.
 
     Returns:
-        Formatted date string (e.g., "Jan 05") or empty string.
+        Formatted date string (e.g., "2024-01-05 14:30") or empty string.
     """
     if dt is None:
         return ""
-    return dt.strftime("%b %d")
+    if include_time:
+        return dt.strftime("%Y-%m-%d %H:%M")
+    return dt.strftime("%Y-%m-%d")

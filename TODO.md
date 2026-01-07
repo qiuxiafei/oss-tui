@@ -12,7 +12,6 @@
 - [ ] Add configuration-based provider selection
 
 ### UI Features
-- [ ] Add file size and date columns to file list
 - [ ] Implement `Ctrl+d` / `Ctrl+u` for page down/up
 - [ ] Add loading indicators for async operations
 
@@ -74,9 +73,10 @@
 - [x] Refresh functionality
 - [x] Search/filter functionality (`/` key) with live filtering and ESC to cancel
 - [x] File preview (`Space` key) with syntax highlighting for text files
-  - Bottom popup panel (40% height)
+  - Modal overlay (90% x 80%), focus locked
   - Text files: syntax highlighting via rich.Syntax
   - Binary files: metadata only
   - Large files (>100KB): truncated with warning
-  - Vim-style scrolling (j/k/g/G) in preview
+  - Vim-style scrolling (j/k/g/G/Ctrl+d/u) in preview
   - ESC/q to close preview
+- [x] File size and date columns in file list
