@@ -3,8 +3,9 @@
 from datetime import datetime
 from pathlib import Path
 
+from oss_tui.exceptions import BucketNotFoundError, ObjectNotFoundError
 from oss_tui.models.bucket import Bucket
-from oss_tui.models.object import Object
+from oss_tui.models.object import ListObjectsResult, Object
 
 
 class FilesystemProvider:
@@ -45,18 +46,38 @@ class FilesystemProvider:
         bucket: str,
         prefix: str = "",
         delimiter: str = "/",
-    ) -> list[Object]:
-        """List files and directories in a bucket."""
+        max_keys: int = 100,
+        marker: str | None = None,
+    ) -> ListObjectsResult:
+        """List files and directories in a bucket with pagination support.
+
+        Args:
+            bucket: The bucket name (top-level directory).
+            prefix: Filter objects by prefix (subdirectory path).
+            delimiter: Delimiter for directory-like listing.
+            max_keys: Maximum number of objects to return (default 100).
+            marker: Return objects after this key (exclusive).
+
+        Returns:
+            ListObjectsResult containing objects and pagination info.
+
+        Raises:
+            BucketNotFoundError: If the bucket does not exist.
+        """
         bucket_path = self.root / bucket
+        if not bucket_path.exists():
+            raise BucketNotFoundError(f"Bucket not found: {bucket}")
+
         if prefix:
             target_path = bucket_path / prefix
         else:
             target_path = bucket_path
 
         if not target_path.exists():
-            return []
+            return ListObjectsResult(objects=[], is_truncated=False, next_marker=None)
 
-        objects = []
+        # Collect all objects first
+        all_objects: list[Object] = []
         for path in sorted(target_path.iterdir()):
             if path.name.startswith("."):
                 continue
@@ -66,7 +87,7 @@ class FilesystemProvider:
             if path.is_dir():
                 key += "/"
 
-            objects.append(
+            all_objects.append(
                 Object(
                     key=key,
                     size=stat.st_size if path.is_file() else 0,
@@ -74,11 +95,46 @@ class FilesystemProvider:
                     is_directory=path.is_dir(),
                 )
             )
-        return objects
+
+        # Apply marker filter (exclusive - return objects after marker)
+        if marker:
+            filtered_objects = [obj for obj in all_objects if obj.key > marker]
+        else:
+            filtered_objects = all_objects
+
+        # Apply pagination
+        is_truncated = len(filtered_objects) > max_keys
+        result_objects = filtered_objects[:max_keys]
+        next_marker = result_objects[-1].key if is_truncated and result_objects else None
+
+        return ListObjectsResult(
+            objects=result_objects,
+            is_truncated=is_truncated,
+            next_marker=next_marker,
+        )
 
     def get_object(self, bucket: str, key: str) -> bytes:
-        """Read file content."""
-        path = self.root / bucket / key
+        """Read file content.
+
+        Args:
+            bucket: The bucket name.
+            key: The object key.
+
+        Returns:
+            Object content as bytes.
+
+        Raises:
+            BucketNotFoundError: If the bucket does not exist.
+            ObjectNotFoundError: If the object does not exist.
+        """
+        bucket_path = self.root / bucket
+        if not bucket_path.exists():
+            raise BucketNotFoundError(f"Bucket not found: {bucket}")
+
+        path = bucket_path / key
+        if not path.exists():
+            raise ObjectNotFoundError(f"Object not found: {key}")
+
         return path.read_bytes()
 
     def put_object(self, bucket: str, key: str, data: bytes) -> Object:

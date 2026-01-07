@@ -3,7 +3,7 @@
 from typing import Protocol
 
 from oss_tui.models.bucket import Bucket
-from oss_tui.models.object import Object
+from oss_tui.models.object import ListObjectsResult, Object
 
 
 class OSSProvider(Protocol):
@@ -26,16 +26,20 @@ class OSSProvider(Protocol):
         bucket: str,
         prefix: str = "",
         delimiter: str = "/",
-    ) -> list[Object]:
-        """List objects in a bucket.
+        max_keys: int = 100,
+        marker: str | None = None,
+    ) -> ListObjectsResult:
+        """List objects in a bucket with pagination support.
 
         Args:
             bucket: The bucket name.
             prefix: Filter objects by prefix (path).
             delimiter: Delimiter for directory-like listing.
+            max_keys: Maximum number of objects to return (default 100).
+            marker: Return objects after this key (exclusive).
 
         Returns:
-            List of Object objects.
+            ListObjectsResult containing objects and pagination info.
         """
         ...
 

@@ -19,3 +19,11 @@ class Object(BaseModel):
     def name(self) -> str:
         """Get the object name (last part of the key)."""
         return self.key.rstrip("/").split("/")[-1]
+
+
+class ListObjectsResult(BaseModel):
+    """Result of list_objects operation with pagination support."""
+
+    objects: list[Object]
+    is_truncated: bool = False
+    next_marker: str | None = None
