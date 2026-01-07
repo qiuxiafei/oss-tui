@@ -70,7 +70,7 @@
 - [x] Pagination support for list_objects
 - [x] Error handling (BucketNotFoundError, ObjectNotFoundError)
 - [x] TUI dual-pane layout (bucket list + file list)
-- [x] Vim-style navigation (j/k/g/G/l/h)
+- [x] Vim-style navigation (j/k/g/G/l/h) - Note: `g` is single key, Textual doesn't support `g g`
 - [x] Directory enter/back navigation
 - [x] Tab to switch panes
 - [x] Refresh functionality

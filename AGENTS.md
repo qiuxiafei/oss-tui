@@ -208,12 +208,16 @@ When implementing a new provider:
 | `k` / `↑`     | Move up          | `y`       | Copy (yank)     |
 | `l` / `Enter` | Enter / Select   | `p`       | Paste           |
 | `h` / `Bksp`  | Go back          | `u`       | Upload          |
-| `g` `g`       | Go to top        | `D`       | Download        |
-| `G`           | Go to bottom     | `r`       | Refresh         |
+| `g` / `Home`  | Go to top        | `D`       | Download        |
+| `G` / `End`   | Go to bottom     | `r`       | Refresh         |
 | `Ctrl+d`      | Page down        | `Space`   | Toggle select   |
 | `Ctrl+u`      | Page up          | `a`       | Switch account  |
 | `/`           | Search / Filter  | `?`       | Show help       |
 | `Esc`         | Cancel / Clear   | `q`       | Quit            |
+| `Tab`         | Switch pane      |           |                 |
+
+**Note**: Textual does not support Vim-style multi-key sequences (like `g g`).
+Use single key `g` or `Home` for go-to-top instead.
 
 ## Configuration
 
@@ -222,6 +226,17 @@ Config file search order:
 2. `~/.oss-tui.toml`
 
 See `config.example.toml` for format details.
+
+## Git Commit Rules
+
+**IMPORTANT**: Before every git commit, you MUST:
+
+1. Update `AGENTS.md` if any conventions, patterns, or technical decisions have changed
+2. Update `TODO.md` to reflect completed tasks and any new tasks discovered
+3. Run `uv run ruff check .` and `uv run pyright` to ensure code quality
+4. Run `uv run pytest` to ensure all tests pass
+
+This ensures project documentation stays in sync with the codebase.
 
 ## Communication
 
