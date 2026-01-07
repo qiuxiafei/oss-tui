@@ -12,7 +12,6 @@
 - [ ] Add configuration-based provider selection
 
 ### UI Features
-- [ ] Add search/filter functionality (`/` key)
 - [ ] Implement file preview (text files, images metadata)
 - [ ] Add file size and date columns to file list
 - [ ] Implement `Ctrl+d` / `Ctrl+u` for page down/up
@@ -74,3 +73,4 @@
 - [x] Directory enter/back navigation
 - [x] Tab to switch panes
 - [x] Refresh functionality
+- [x] Search/filter functionality (`/` key) with live filtering and ESC to cancel

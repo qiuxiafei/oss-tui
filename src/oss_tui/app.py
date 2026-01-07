@@ -8,6 +8,7 @@ from textual.widgets import Footer, Header, Static
 from oss_tui.providers.filesystem import FilesystemProvider
 from oss_tui.ui.widgets.bucket_list import BucketList
 from oss_tui.ui.widgets.file_list import FileList
+from oss_tui.ui.widgets.search_input import SearchInput
 
 
 class OssTuiApp(App):
@@ -52,6 +53,25 @@ class OssTuiApp(App):
         padding: 0 1;
     }
 
+    #search-container {
+        height: auto;
+        display: none;
+    }
+
+    #search-container.visible {
+        display: block;
+    }
+
+    #search-input {
+        height: 3;
+        background: $surface;
+        border: solid $primary;
+    }
+
+    BucketList > ListItem {
+        padding: 0 1;
+    }
+
     BucketList > ListItem {
         padding: 0 1;
     }
@@ -74,6 +94,8 @@ class OssTuiApp(App):
         Binding("?", "help", "Help"),
         Binding("r", "refresh", "Refresh"),
         Binding("tab", "switch_pane", "Switch Pane"),
+        Binding("slash", "start_search", "Search"),
+        Binding("escape", "cancel_search", "Cancel", show=False),
     ]
 
     def __init__(self, root: str | None = None) -> None:
@@ -86,6 +108,8 @@ class OssTuiApp(App):
         self.provider = FilesystemProvider(root=root)
         self._current_bucket: str | None = None
         self._current_path: str = ""
+        self._search_active: bool = False
+        self._last_focused_widget: str = "#bucket-list"
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -98,6 +122,8 @@ class OssTuiApp(App):
                 yield Static("Files", id="file-header")
                 yield Static("", id="path-bar")
                 yield FileList(id="file-list")
+        with Vertical(id="search-container"):
+            yield SearchInput(id="search-input")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -201,3 +227,70 @@ class OssTuiApp(App):
             file_list.focus()
         else:
             bucket_list.focus()
+
+    def action_start_search(self) -> None:
+        """Start search mode."""
+        if self._search_active:
+            return
+
+        # Remember which widget was focused
+        bucket_list = self.query_one("#bucket-list", BucketList)
+        file_list = self.query_one("#file-list", FileList)
+        if bucket_list.has_focus:
+            self._last_focused_widget = "#bucket-list"
+        elif file_list.has_focus:
+            self._last_focused_widget = "#file-list"
+
+        self._search_active = True
+        search_container = self.query_one("#search-container")
+        search_container.add_class("visible")
+
+        search_input = self.query_one("#search-input", SearchInput)
+        search_input.value = ""
+        search_input.focus()
+
+    def action_cancel_search(self) -> None:
+        """Cancel search mode and clear filter."""
+        if not self._search_active:
+            return
+
+        self._search_active = False
+        search_container = self.query_one("#search-container")
+        search_container.remove_class("visible")
+
+        # Clear filters
+        self.query_one("#bucket-list", BucketList).clear_filter()
+        self.query_one("#file-list", FileList).clear_filter()
+
+        # Restore focus to the previously focused widget
+        self.query_one(self._last_focused_widget).focus()
+
+    def on_search_input_search_changed(
+        self, event: SearchInput.SearchChanged
+    ) -> None:
+        """Handle live search filtering."""
+        query = event.query.lower()
+
+        # Filter the active list based on which was last focused
+        if self._last_focused_widget == "#bucket-list":
+            self.query_one("#bucket-list", BucketList).apply_filter(query)
+        else:
+            self.query_one("#file-list", FileList).apply_filter(query)
+
+    def on_search_input_search_submitted(
+        self, event: SearchInput.SearchSubmitted
+    ) -> None:
+        """Handle search submission."""
+        # Hide search input but keep filter active
+        self._search_active = False
+        search_container = self.query_one("#search-container")
+        search_container.remove_class("visible")
+
+        # Restore focus to the previously focused widget
+        self.query_one(self._last_focused_widget).focus()
+
+    def on_search_input_search_cancelled(
+        self, event: SearchInput.SearchCancelled
+    ) -> None:
+        """Handle search cancellation."""
+        self.action_cancel_search()

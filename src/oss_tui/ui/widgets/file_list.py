@@ -65,7 +65,9 @@ class FileList(ListView):
         """Initialize the file list."""
         super().__init__(*args, **kwargs)
         self._objects: list[Object] = []
+        self._filtered_objects: list[Object] = []
         self._current_path: str = ""
+        self._filter_query: str = ""
 
     @property
     def current_path(self) -> str:
@@ -81,9 +83,40 @@ class FileList(ListView):
         """
         self._objects = objects
         self._current_path = path
+        self._filter_query = ""
+        self._refresh_display(objects)
+
+    def _refresh_display(self, objects: list[Object]) -> None:
+        """Refresh the display with the given objects.
+
+        Args:
+            objects: List of objects to display.
+        """
+        self._filtered_objects = objects
         self.clear()
         for obj in objects:
             self.append(FileListItem(obj))
+
+    def apply_filter(self, query: str) -> None:
+        """Apply a filter to the list.
+
+        Args:
+            query: The filter query (case-insensitive).
+        """
+        self._filter_query = query
+        if not query:
+            self._refresh_display(self._objects)
+        else:
+            filtered = [
+                obj for obj in self._objects
+                if query in obj.name.lower()
+            ]
+            self._refresh_display(filtered)
+
+    def clear_filter(self) -> None:
+        """Clear the current filter and show all objects."""
+        self._filter_query = ""
+        self._refresh_display(self._objects)
 
     def action_go_top(self) -> None:
         """Go to the first item."""

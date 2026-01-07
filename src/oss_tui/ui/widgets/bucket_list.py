@@ -56,6 +56,8 @@ class BucketList(ListView):
         """Initialize the bucket list."""
         super().__init__(*args, **kwargs)
         self._buckets: list[Bucket] = []
+        self._filtered_buckets: list[Bucket] = []
+        self._filter_query: str = ""
 
     def load_buckets(self, buckets: list[Bucket]) -> None:
         """Load buckets into the list.
@@ -64,9 +66,40 @@ class BucketList(ListView):
             buckets: List of buckets to display.
         """
         self._buckets = buckets
+        self._filter_query = ""
+        self._refresh_display(buckets)
+
+    def _refresh_display(self, buckets: list[Bucket]) -> None:
+        """Refresh the display with the given buckets.
+
+        Args:
+            buckets: List of buckets to display.
+        """
+        self._filtered_buckets = buckets
         self.clear()
         for bucket in buckets:
             self.append(BucketListItem(bucket))
+
+    def apply_filter(self, query: str) -> None:
+        """Apply a filter to the list.
+
+        Args:
+            query: The filter query (case-insensitive).
+        """
+        self._filter_query = query
+        if not query:
+            self._refresh_display(self._buckets)
+        else:
+            filtered = [
+                bucket for bucket in self._buckets
+                if query in bucket.name.lower()
+            ]
+            self._refresh_display(filtered)
+
+    def clear_filter(self) -> None:
+        """Clear the current filter and show all buckets."""
+        self._filter_query = ""
+        self._refresh_display(self._buckets)
 
     def action_go_top(self) -> None:
         """Go to the first item."""
