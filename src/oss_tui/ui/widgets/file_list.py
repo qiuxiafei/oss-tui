@@ -44,6 +44,7 @@ class FileList(ListView):
         ("backspace", "go_back", "Back"),
         ("home", "go_top", "Top"),
         ("end", "go_bottom", "Bottom"),
+        ("space", "preview", "Preview"),
     ]
 
     class DirectoryEntered(Message):
@@ -60,6 +61,18 @@ class FileList(ListView):
 
     class GoBack(Message):
         """Message sent when going back to parent directory."""
+
+    class PreviewRequested(Message):
+        """Message sent when file preview is requested."""
+
+        def __init__(self, obj: Object) -> None:
+            """Initialize the message.
+
+            Args:
+                obj: The object to preview.
+            """
+            super().__init__()
+            self.obj = obj
 
     def __init__(self, *args, **kwargs) -> None:
         """Initialize the file list."""
@@ -130,6 +143,16 @@ class FileList(ListView):
     def action_go_back(self) -> None:
         """Go back to parent directory."""
         self.post_message(self.GoBack())
+
+    def action_preview(self) -> None:
+        """Request preview of the current item."""
+        if self.index is not None and self._nodes:
+            item = self._nodes[self.index]
+            if isinstance(item, FileListItem):
+                obj = item.obj
+                # Only preview files, not directories
+                if not obj.is_directory:
+                    self.post_message(self.PreviewRequested(obj))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle item selection."""

@@ -6,6 +6,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header, Static
 
 from oss_tui.providers.filesystem import FilesystemProvider
+from oss_tui.ui.modals.preview import MAX_PREVIEW_SIZE, PreviewModal
 from oss_tui.ui.widgets.bucket_list import BucketList
 from oss_tui.ui.widgets.file_list import FileList
 from oss_tui.ui.widgets.search_input import SearchInput
@@ -294,3 +295,28 @@ class OssTuiApp(App):
     ) -> None:
         """Handle search cancellation."""
         self.action_cancel_search()
+
+    def on_file_list_preview_requested(
+        self, event: FileList.PreviewRequested
+    ) -> None:
+        """Handle file preview request."""
+        obj = event.obj
+
+        if not self._current_bucket:
+            return
+
+        try:
+            # Check file size
+            is_truncated = obj.size > MAX_PREVIEW_SIZE
+
+            # Get file content (limited to MAX_PREVIEW_SIZE)
+            content = self.provider.get_object(self._current_bucket, obj.key)
+
+            # Truncate if needed
+            if is_truncated:
+                content = content[:MAX_PREVIEW_SIZE]
+
+            # Show preview modal
+            self.push_screen(PreviewModal(obj, content, is_truncated))
+        except Exception as e:
+            self.notify(f"Error loading preview: {e}", severity="error")

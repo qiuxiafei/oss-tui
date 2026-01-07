@@ -12,7 +12,6 @@
 - [ ] Add configuration-based provider selection
 
 ### UI Features
-- [ ] Implement file preview (text files, images metadata)
 - [ ] Add file size and date columns to file list
 - [ ] Implement `Ctrl+d` / `Ctrl+u` for page down/up
 - [ ] Add loading indicators for async operations
@@ -29,7 +28,7 @@
 ### UI Enhancements
 - [ ] Add help modal (`?` key) with full keybinding reference
 - [ ] Add account/provider switching (`a` key)
-- [ ] Implement multi-select with `Space` key
+- [ ] Implement multi-select (need new keybinding, `Space` now used for preview)
 - [ ] Add breadcrumb navigation in path bar
 - [ ] Improve styling and color scheme
 - [ ] Add file type icons (directory, file, image, etc.)
@@ -74,3 +73,10 @@
 - [x] Tab to switch panes
 - [x] Refresh functionality
 - [x] Search/filter functionality (`/` key) with live filtering and ESC to cancel
+- [x] File preview (`Space` key) with syntax highlighting for text files
+  - Bottom popup panel (40% height)
+  - Text files: syntax highlighting via rich.Syntax
+  - Binary files: metadata only
+  - Large files (>100KB): truncated with warning
+  - Vim-style scrolling (j/k/g/G) in preview
+  - ESC/q to close preview
