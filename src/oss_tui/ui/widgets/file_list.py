@@ -49,6 +49,7 @@ class FileList(ListView):
         ("space", "preview", "Preview"),
         ("D", "download", "Download"),
         ("u", "upload", "Upload"),
+        ("d", "delete", "Delete"),
     ]
 
     class DirectoryEntered(Message):
@@ -101,6 +102,18 @@ class FileList(ListView):
             """
             super().__init__()
             self.current_path = current_path
+
+    class DeleteRequested(Message):
+        """Message sent when file/directory deletion is requested."""
+
+        def __init__(self, obj: Object) -> None:
+            """Initialize the message.
+
+            Args:
+                obj: The object to delete.
+            """
+            super().__init__()
+            self.obj = obj
 
     def __init__(self, *args, **kwargs) -> None:
         """Initialize the file list."""
@@ -203,6 +216,13 @@ class FileList(ListView):
     def action_upload(self) -> None:
         """Request upload to current path."""
         self.post_message(self.UploadRequested(self._current_path))
+
+    def action_delete(self) -> None:
+        """Request deletion of the current item."""
+        if self.index is not None and self._nodes:
+            item = self._nodes[self.index]
+            if isinstance(item, FileListItem):
+                self.post_message(self.DeleteRequested(item.obj))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle item selection."""

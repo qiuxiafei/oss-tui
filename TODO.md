@@ -28,7 +28,7 @@
 ### File Operations
 - [x] Download file (`D` key)
 - [x] Upload file (`u` key)
-- [ ] Delete file/directory (`d` key with confirmation)
+- [x] Delete file/directory (`d` key with confirmation)
 - [ ] Copy file (`y` to yank, `p` to paste)
 - [ ] Rename/move file
 
@@ -97,3 +97,4 @@
 - [x] Account switching with `a` key (cycles through configured accounts)
 - [x] Download file (`D` key) with path input modal
 - [x] Upload file (`u` key) with path input modal
+- [x] Delete file/directory (`d` key) with confirmation modal

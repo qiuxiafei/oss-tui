@@ -11,6 +11,7 @@ from oss_tui.config.loader import get_account_config, get_account_names, load_co
 from oss_tui.config.settings import AppConfig
 from oss_tui.providers import create_provider
 from oss_tui.providers.factory import OSSProviderProtocol
+from oss_tui.ui.modals.confirm import ConfirmModal
 from oss_tui.ui.modals.input import InputModal
 from oss_tui.ui.modals.preview import MAX_PREVIEW_SIZE, PreviewModal
 from oss_tui.ui.widgets.bucket_list import BucketList
@@ -518,3 +519,66 @@ class OssTuiApp(App):
 
         except Exception as e:
             self.notify(f"Upload failed: {e}", severity="error")
+
+    def on_file_list_delete_requested(
+        self, event: FileList.DeleteRequested
+    ) -> None:
+        """Handle file/directory deletion request."""
+        obj = event.obj
+
+        if not self._current_bucket:
+            return
+
+        # Show confirmation modal
+        obj_type = "directory" if obj.is_directory else "file"
+        message = f"Delete {obj_type} '{obj.name}'?"
+
+        def handle_confirm(confirmed: bool | None) -> None:
+            if confirmed:
+                self._do_delete(obj.key, obj.is_directory)
+
+        self.push_screen(ConfirmModal(message), handle_confirm)
+
+    def _do_delete(self, key: str, is_directory: bool) -> None:
+        """Perform the actual deletion.
+
+        Args:
+            key: The object key to delete.
+            is_directory: Whether the object is a directory.
+        """
+        if not self._current_bucket:
+            return
+
+        try:
+            if is_directory:
+                # For directories, we need to delete all objects with this prefix
+                # First, list all objects under this prefix
+                self.notify("Deleting directory...", severity="information")
+                result = self.provider.list_objects(
+                    self._current_bucket,
+                    prefix=key,
+                    delimiter="",  # No delimiter to get all nested objects
+                    max_keys=1000,
+                )
+
+                # Delete all objects
+                deleted_count = 0
+                for obj in result.objects:
+                    self.provider.delete_object(self._current_bucket, obj.key)
+                    deleted_count += 1
+
+                self.notify(
+                    f"Deleted directory: {key} ({deleted_count} objects)",
+                    severity="information",
+                )
+            else:
+                # Delete single file
+                self.notify("Deleting...", severity="information")
+                self.provider.delete_object(self._current_bucket, key)
+                self.notify(f"Deleted: {key}", severity="information")
+
+            # Refresh the file list
+            self._load_objects(self._current_bucket, self._current_path)
+
+        except Exception as e:
+            self.notify(f"Delete failed: {e}", severity="error")
