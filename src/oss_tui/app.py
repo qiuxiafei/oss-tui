@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -14,12 +15,17 @@ from oss_tui.providers.factory import OSSProviderProtocol
 from oss_tui.ui.modals.confirm import ConfirmModal
 from oss_tui.ui.modals.path_input import PathInputModal
 from oss_tui.ui.modals.preview import MAX_PREVIEW_SIZE, PreviewModal
+from oss_tui.ui.modals.progress import ProgressModal
 from oss_tui.ui.widgets.bucket_list import BucketList
 from oss_tui.ui.widgets.file_list import FileList
 from oss_tui.ui.widgets.search_input import SearchInput
 
 # Default download directory
 DEFAULT_DOWNLOAD_DIR = Path.home() / "Downloads"
+
+# Thresholds for showing progress bar
+PROGRESS_FILE_COUNT_THRESHOLD = 5  # Show progress if more than 5 files
+PROGRESS_SIZE_THRESHOLD = 10 * 1024 * 1024  # Show progress if more than 10MB
 
 
 class OssTuiApp(App):
@@ -497,7 +503,8 @@ class OssTuiApp(App):
                 return
 
             if path.is_dir():
-                self.notify("Cannot upload directories", severity="error")
+                # Delegate to directory upload
+                self._do_upload_directory(local_path, remote_prefix)
                 return
 
             self.notify("Uploading...", severity="information")
@@ -582,3 +589,289 @@ class OssTuiApp(App):
 
         except Exception as e:
             self.notify(f"Delete failed: {e}", severity="error")
+
+    def on_file_list_directory_download_requested(
+        self, event: FileList.DirectoryDownloadRequested
+    ) -> None:
+        """Handle directory download request."""
+        obj = event.obj
+
+        if not self._current_bucket:
+            return
+
+        # Determine default download path
+        download_dir = DEFAULT_DOWNLOAD_DIR
+        if not download_dir.exists():
+            download_dir = Path.home()
+
+        # Use directory name as default folder name
+        dir_name = obj.key.rstrip("/").split("/")[-1] if "/" in obj.key else obj.key.rstrip("/")
+        default_path = str(download_dir / dir_name)
+
+        # Show input modal for download path
+        def handle_download_path(path: str | None) -> None:
+            if path is None:
+                return  # User cancelled
+
+            self._do_download_directory(obj.key, path)
+
+        self.push_screen(
+            PathInputModal(
+                prompt=f"Download directory '{dir_name}' to:",
+                default=default_path,
+                placeholder="Enter local directory path (Tab to complete)",
+            ),
+            handle_download_path,
+        )
+
+    def _do_download_directory(self, prefix: str, local_path: str) -> None:
+        """Perform the actual directory download.
+
+        Args:
+            prefix: The remote directory prefix to download.
+            local_path: The local directory path to save to.
+        """
+        if not self._current_bucket:
+            return
+
+        try:
+            # Get the generator to peek at the first progress (for file count)
+            download_gen = self.provider.download_directory(
+                self._current_bucket, prefix, local_path
+            )
+
+            # Get initial progress to check thresholds
+            first_progress = next(download_gen, None)
+            if first_progress is None:
+                self.notify("No files to download", severity="warning")
+                return
+
+            # Decide whether to show progress modal based on thresholds
+            show_progress = (
+                first_progress.total_files > PROGRESS_FILE_COUNT_THRESHOLD
+                or first_progress.total_bytes > PROGRESS_SIZE_THRESHOLD
+            )
+
+            if show_progress:
+                # Show progress modal and run download in background
+                self._run_download_with_progress(
+                    download_gen, first_progress, local_path
+                )
+            else:
+                # Run download synchronously with simple notification
+                self.notify("Downloading directory...", severity="information")
+                last_progress = first_progress
+                for progress in download_gen:
+                    last_progress = progress
+
+                self.notify(
+                    f"Downloaded {last_progress.completed_files} files to: {local_path}",
+                    severity="information",
+                )
+
+        except Exception as e:
+            self.notify(f"Directory download failed: {e}", severity="error")
+
+    def _run_download_with_progress(
+        self, download_gen, first_progress, local_path: str
+    ) -> None:
+        """Run download with progress modal.
+
+        Args:
+            download_gen: The download generator.
+            first_progress: The first progress update.
+            local_path: The local path for notification.
+        """
+        from oss_tui.providers.base import TransferProgress
+
+        progress_modal = ProgressModal(
+            title="Downloading Directory",
+            total_files=first_progress.total_files,
+            total_bytes=first_progress.total_bytes,
+        )
+
+        # Store state for the worker
+        self._transfer_gen = download_gen
+        self._transfer_local_path = local_path
+        self._transfer_remote_prefix = ""
+
+        def handle_progress_result(completed: bool | None) -> None:
+            if completed:
+                self.notify(
+                    f"Download completed to: {local_path}",
+                    severity="information",
+                )
+            else:
+                self.notify("Download cancelled", severity="warning")
+
+        self.push_screen(progress_modal, handle_progress_result)
+
+        # Start the background worker
+        self._run_transfer_worker(progress_modal, is_upload=False)
+
+    @work(exclusive=True, thread=True)
+    def _run_transfer_worker(
+        self, progress_modal: ProgressModal, is_upload: bool
+    ) -> None:
+        """Background worker for directory transfer.
+
+        Args:
+            progress_modal: The progress modal to update.
+            is_upload: True if uploading, False if downloading.
+        """
+        try:
+            last_progress = None
+            for progress in self._transfer_gen:
+                if progress_modal.is_cancelled:
+                    break
+
+                last_progress = progress
+
+                # Update progress on the main thread
+                self.call_from_thread(
+                    progress_modal.update_progress,
+                    progress.completed_files,
+                    progress.transferred_bytes,
+                    progress.current_file,
+                )
+
+            # Complete the modal
+            if not progress_modal.is_cancelled:
+                self.call_from_thread(progress_modal.complete)
+
+                # Refresh file list if upload
+                if is_upload and self._current_bucket:
+                    self.call_from_thread(
+                        self._load_objects,
+                        self._current_bucket,
+                        self._transfer_remote_prefix,
+                    )
+
+        except Exception as e:
+            self.call_from_thread(
+                self.notify,
+                f"Transfer failed: {e}",
+                severity="error",
+            )
+            self.call_from_thread(progress_modal.dismiss, False)
+
+    def on_file_list_directory_upload_requested(
+        self, event: FileList.DirectoryUploadRequested
+    ) -> None:
+        """Handle directory upload request."""
+        if not self._current_bucket:
+            self.notify("Please select a bucket first", severity="warning")
+            return
+
+        # Show input modal for local directory path
+        def handle_upload_path(path: str | None) -> None:
+            if path is None:
+                return  # User cancelled
+
+            self._do_upload_directory(path, event.current_path)
+
+        self.push_screen(
+            PathInputModal(
+                prompt="Upload directory from:",
+                default="",
+                placeholder="Enter local directory path (Tab to complete)",
+            ),
+            handle_upload_path,
+        )
+
+    def _do_upload_directory(self, local_path: str, remote_prefix: str) -> None:
+        """Perform the actual directory upload.
+
+        Args:
+            local_path: The local directory path to upload.
+            remote_prefix: The remote path prefix in the bucket.
+        """
+        if not self._current_bucket:
+            return
+
+        try:
+            # Validate local path
+            path = Path(local_path).expanduser()
+            if not path.exists():
+                self.notify(f"Directory not found: {path}", severity="error")
+                return
+
+            if not path.is_dir():
+                self.notify(f"Not a directory: {path}", severity="error")
+                return
+
+            # Get the generator to peek at the first progress (for file count)
+            upload_gen = self.provider.upload_directory(
+                self._current_bucket, str(path), remote_prefix
+            )
+
+            # Get initial progress to check thresholds
+            first_progress = next(upload_gen, None)
+            if first_progress is None:
+                self.notify("No files to upload", severity="warning")
+                return
+
+            # Decide whether to show progress modal based on thresholds
+            show_progress = (
+                first_progress.total_files > PROGRESS_FILE_COUNT_THRESHOLD
+                or first_progress.total_bytes > PROGRESS_SIZE_THRESHOLD
+            )
+
+            if show_progress:
+                # Show progress modal and run upload in background
+                self._run_upload_with_progress(
+                    upload_gen, first_progress, path.name, remote_prefix
+                )
+            else:
+                # Run upload synchronously with simple notification
+                self.notify("Uploading directory...", severity="information")
+                last_progress = first_progress
+                for progress in upload_gen:
+                    last_progress = progress
+
+                self.notify(
+                    f"Uploaded {last_progress.completed_files} files from: {path.name}",
+                    severity="information",
+                )
+
+                # Refresh the file list
+                self._load_objects(self._current_bucket, remote_prefix)
+
+        except Exception as e:
+            self.notify(f"Directory upload failed: {e}", severity="error")
+
+    def _run_upload_with_progress(
+        self, upload_gen, first_progress, dir_name: str, remote_prefix: str
+    ) -> None:
+        """Run upload with progress modal.
+
+        Args:
+            upload_gen: The upload generator.
+            first_progress: The first progress update.
+            dir_name: The directory name for notification.
+            remote_prefix: The remote prefix for refresh.
+        """
+        progress_modal = ProgressModal(
+            title=f"Uploading: {dir_name}",
+            total_files=first_progress.total_files,
+            total_bytes=first_progress.total_bytes,
+        )
+
+        # Store state for the worker
+        self._transfer_gen = upload_gen
+        self._transfer_local_path = dir_name
+        self._transfer_remote_prefix = remote_prefix
+
+        def handle_progress_result(completed: bool | None) -> None:
+            if completed:
+                self.notify(
+                    f"Upload completed: {dir_name}",
+                    severity="information",
+                )
+            else:
+                self.notify("Upload cancelled", severity="warning")
+
+        self.push_screen(progress_modal, handle_progress_result)
+
+        # Start the background worker
+        self._run_transfer_worker(progress_modal, is_upload=True)

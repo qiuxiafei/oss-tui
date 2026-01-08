@@ -1,9 +1,43 @@
 """Abstract base for OSS providers."""
 
+from collections.abc import Generator
 from typing import Protocol
 
 from oss_tui.models.bucket import Bucket
 from oss_tui.models.object import ListObjectsResult, Object
+
+
+class TransferProgress:
+    """Progress information for directory transfer operations.
+
+    Attributes:
+        total_files: Total number of files to transfer.
+        completed_files: Number of files transferred so far.
+        current_file: Path of the file currently being transferred.
+        total_bytes: Total bytes to transfer (if known).
+        transferred_bytes: Bytes transferred so far.
+    """
+
+    def __init__(
+        self,
+        total_files: int = 0,
+        completed_files: int = 0,
+        current_file: str = "",
+        total_bytes: int = 0,
+        transferred_bytes: int = 0,
+    ) -> None:
+        self.total_files = total_files
+        self.completed_files = completed_files
+        self.current_file = current_file
+        self.total_bytes = total_bytes
+        self.transferred_bytes = transferred_bytes
+
+    @property
+    def progress_percent(self) -> float:
+        """Calculate progress percentage based on file count."""
+        if self.total_files == 0:
+            return 0.0
+        return (self.completed_files / self.total_files) * 100
 
 
 class OSSProvider(Protocol):
@@ -94,5 +128,56 @@ class OSSProvider(Protocol):
 
         Returns:
             The copied Object metadata.
+        """
+        ...
+
+    def download_directory(
+        self,
+        bucket: str,
+        prefix: str,
+        local_path: str,
+    ) -> Generator[TransferProgress, None, None]:
+        """Download a directory from the bucket to a local path.
+
+        Downloads all objects under the given prefix to the local directory,
+        preserving the directory structure.
+
+        Args:
+            bucket: The bucket name.
+            prefix: The prefix (directory) to download.
+            local_path: The local directory path to save files to.
+
+        Yields:
+            TransferProgress objects indicating download progress.
+
+        Raises:
+            BucketNotFoundError: If the bucket does not exist.
+            OSSError: If there is an error downloading files.
+        """
+        ...
+
+    def upload_directory(
+        self,
+        bucket: str,
+        local_path: str,
+        prefix: str = "",
+    ) -> Generator[TransferProgress, None, None]:
+        """Upload a local directory to the bucket.
+
+        Uploads all files in the local directory to the bucket,
+        preserving the directory structure.
+
+        Args:
+            bucket: The bucket name.
+            local_path: The local directory path to upload.
+            prefix: The prefix (directory) to upload to in the bucket.
+
+        Yields:
+            TransferProgress objects indicating upload progress.
+
+        Raises:
+            BucketNotFoundError: If the bucket does not exist.
+            FileNotFoundError: If the local path does not exist.
+            OSSError: If there is an error uploading files.
         """
         ...

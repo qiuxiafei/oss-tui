@@ -10,6 +10,7 @@ from textual.widgets import Button, Input
 from oss_tui.ui.modals.confirm import ConfirmModal
 from oss_tui.ui.modals.input import InputModal
 from oss_tui.ui.modals.path_input import PathInput, PathInputModal
+from oss_tui.ui.modals.progress import ProgressModal
 
 
 class ConfirmModalApp(App):
@@ -212,3 +213,87 @@ class TestPathInput:
             path_input = PathInput()
             formatted = path_input._format_path(dir_path)
             assert formatted.endswith("/")
+
+
+class ProgressModalApp(App):
+    """Test app for ProgressModal."""
+
+    CSS = """
+    Screen {
+        align: center middle;
+    }
+    """
+
+    def __init__(self, total_files: int = 10, total_bytes: int = 1024, **kwargs):
+        super().__init__(**kwargs)
+        self._total_files = total_files
+        self._total_bytes = total_bytes
+
+    def compose(self):
+        yield ProgressModal(
+            title="Test Transfer",
+            total_files=self._total_files,
+            total_bytes=self._total_bytes,
+        )
+
+
+class TestProgressModal:
+    """Test cases for ProgressModal."""
+
+    @pytest.mark.asyncio
+    async def test_modal_has_progress_bar(self):
+        """Test that modal has progress bar."""
+        from textual.widgets import ProgressBar
+
+        app = ProgressModalApp()
+        async with app.run_test() as pilot:
+            progress_bar = pilot.app.query_one("#progress", ProgressBar)
+            assert progress_bar is not None
+
+    @pytest.mark.asyncio
+    async def test_modal_has_title(self):
+        """Test that modal has title."""
+        from textual.widgets import Label
+
+        app = ProgressModalApp()
+        async with app.run_test() as pilot:
+            title = pilot.app.query_one("#title", Label)
+            assert title is not None
+
+    @pytest.mark.asyncio
+    async def test_modal_update_progress(self):
+        """Test that progress can be updated."""
+        app = ProgressModalApp(total_files=10, total_bytes=10240)
+        async with app.run_test() as pilot:
+            modal = pilot.app.query_one(ProgressModal)
+            modal.update_progress(5, 5120, "test_file.txt")
+            await pilot.pause()
+
+            # Verify internal state is updated
+            assert modal._completed_files == 5
+            assert modal._transferred_bytes == 5120
+            assert modal._current_file == "test_file.txt"
+
+    @pytest.mark.asyncio
+    async def test_modal_cancelled_state(self):
+        """Test that modal tracks cancelled state."""
+        app = ProgressModalApp()
+        async with app.run_test() as pilot:
+            modal = pilot.app.query_one(ProgressModal)
+            assert modal.is_cancelled is False
+
+    def test_format_size_bytes(self):
+        """Test size formatting for bytes."""
+        assert ProgressModal._format_size(512) == "512.0 B"
+
+    def test_format_size_kilobytes(self):
+        """Test size formatting for kilobytes."""
+        assert ProgressModal._format_size(2048) == "2.0 KB"
+
+    def test_format_size_megabytes(self):
+        """Test size formatting for megabytes."""
+        assert ProgressModal._format_size(5 * 1024 * 1024) == "5.0 MB"
+
+    def test_format_size_gigabytes(self):
+        """Test size formatting for gigabytes."""
+        assert ProgressModal._format_size(2 * 1024 * 1024 * 1024) == "2.0 GB"

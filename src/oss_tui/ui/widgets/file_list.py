@@ -49,6 +49,7 @@ class FileList(ListView):
         ("space", "preview", "Preview"),
         ("D", "download", "Download"),
         ("u", "upload", "Upload"),
+        ("U", "upload_directory", "Upload Dir"),
         ("d", "delete", "Delete"),
     ]
 
@@ -90,6 +91,30 @@ class FileList(ListView):
             """
             super().__init__()
             self.obj = obj
+
+    class DirectoryDownloadRequested(Message):
+        """Message sent when directory download is requested."""
+
+        def __init__(self, obj: Object) -> None:
+            """Initialize the message.
+
+            Args:
+                obj: The directory object to download.
+            """
+            super().__init__()
+            self.obj = obj
+
+    class DirectoryUploadRequested(Message):
+        """Message sent when directory upload is requested."""
+
+        def __init__(self, current_path: str) -> None:
+            """Initialize the message.
+
+            Args:
+                current_path: The current path in the bucket.
+            """
+            super().__init__()
+            self.current_path = current_path
 
     class UploadRequested(Message):
         """Message sent when file upload is requested."""
@@ -204,18 +229,23 @@ class FileList(ListView):
                     self.post_message(self.PreviewRequested(obj))
 
     def action_download(self) -> None:
-        """Request download of the current item."""
+        """Request download of the current item (file or directory)."""
         if self.index is not None and self._nodes:
             item = self._nodes[self.index]
             if isinstance(item, FileListItem):
                 obj = item.obj
-                # Only download files, not directories
-                if not obj.is_directory:
+                if obj.is_directory:
+                    self.post_message(self.DirectoryDownloadRequested(obj))
+                else:
                     self.post_message(self.DownloadRequested(obj))
 
     def action_upload(self) -> None:
         """Request upload to current path."""
         self.post_message(self.UploadRequested(self._current_path))
+
+    def action_upload_directory(self) -> None:
+        """Request directory upload to current path."""
+        self.post_message(self.DirectoryUploadRequested(self._current_path))
 
     def action_delete(self) -> None:
         """Request deletion of the current item."""

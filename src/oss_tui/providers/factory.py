@@ -1,11 +1,13 @@
 """Provider factory for creating OSS providers from configuration."""
 
+from collections.abc import Generator
 from typing import Protocol, runtime_checkable
 
 from oss_tui.config.settings import AccountConfig
 from oss_tui.exceptions import ConfigurationError
 from oss_tui.models.bucket import Bucket
 from oss_tui.models.object import ListObjectsResult, Object
+from oss_tui.providers.base import TransferProgress
 
 
 @runtime_checkable
@@ -27,6 +29,12 @@ class OSSProviderProtocol(Protocol):
     def copy_object(
         self, src_bucket: str, src_key: str, dst_bucket: str, dst_key: str
     ) -> Object: ...
+    def download_directory(
+        self, bucket: str, prefix: str, local_path: str
+    ) -> Generator[TransferProgress, None, None]: ...
+    def upload_directory(
+        self, bucket: str, local_path: str, prefix: str = ""
+    ) -> Generator[TransferProgress, None, None]: ...
 
 
 # Registry of provider types to their factory functions

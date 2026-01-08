@@ -5,6 +5,7 @@ from oss_tui.ui.modals.help import HelpModal
 from oss_tui.ui.modals.input import InputModal
 from oss_tui.ui.modals.path_input import PathInputModal
 from oss_tui.ui.modals.preview import PreviewModal
+from oss_tui.ui.modals.progress import ProgressModal
 
 __all__ = [
     "ConfirmModal",
@@ -12,4 +13,5 @@ __all__ = [
     "InputModal",
     "PathInputModal",
     "PreviewModal",
+    "ProgressModal",
 ]

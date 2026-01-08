@@ -1,11 +1,13 @@
 """Filesystem provider for local development and testing."""
 
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
 
 from oss_tui.exceptions import BucketNotFoundError, ObjectNotFoundError
 from oss_tui.models.bucket import Bucket
 from oss_tui.models.object import ListObjectsResult, Object
+from oss_tui.providers.base import TransferProgress
 
 
 class FilesystemProvider:
@@ -176,4 +178,168 @@ class FilesystemProvider:
             key=dst_key,
             size=stat.st_size,
             last_modified=datetime.fromtimestamp(stat.st_mtime),
+        )
+
+    def download_directory(
+        self,
+        bucket: str,
+        prefix: str,
+        local_path: str,
+    ) -> Generator[TransferProgress, None, None]:
+        """Download a directory from the bucket to a local path.
+
+        Args:
+            bucket: The bucket name.
+            prefix: The prefix (directory) to download.
+            local_path: The local directory path to save files to.
+
+        Yields:
+            TransferProgress objects indicating download progress.
+        """
+        import shutil
+
+        bucket_path = self.root / bucket
+        if not bucket_path.exists():
+            raise BucketNotFoundError(f"Bucket not found: {bucket}")
+
+        # Source directory
+        src_dir = bucket_path / prefix.rstrip("/")
+        if not src_dir.exists():
+            raise ObjectNotFoundError(f"Directory not found: {prefix}")
+
+        # Destination directory
+        dst_dir = Path(local_path).expanduser()
+        dst_dir.mkdir(parents=True, exist_ok=True)
+
+        # Collect all files to transfer
+        files_to_transfer: list[Path] = []
+        total_bytes = 0
+        for src_file in src_dir.rglob("*"):
+            if src_file.is_file() and not src_file.name.startswith("."):
+                files_to_transfer.append(src_file)
+                total_bytes += src_file.stat().st_size
+
+        total_files = len(files_to_transfer)
+        transferred_bytes = 0
+
+        # Yield initial progress
+        yield TransferProgress(
+            total_files=total_files,
+            completed_files=0,
+            current_file="",
+            total_bytes=total_bytes,
+            transferred_bytes=0,
+        )
+
+        # Copy each file
+        for i, src_file in enumerate(files_to_transfer):
+            relative_path = src_file.relative_to(src_dir)
+            dst_file = dst_dir / relative_path
+
+            # Yield progress before starting this file
+            yield TransferProgress(
+                total_files=total_files,
+                completed_files=i,
+                current_file=str(relative_path),
+                total_bytes=total_bytes,
+                transferred_bytes=transferred_bytes,
+            )
+
+            # Create parent directory and copy file
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dst_file)
+
+            transferred_bytes += src_file.stat().st_size
+
+        # Yield final progress
+        yield TransferProgress(
+            total_files=total_files,
+            completed_files=total_files,
+            current_file="",
+            total_bytes=total_bytes,
+            transferred_bytes=transferred_bytes,
+        )
+
+    def upload_directory(
+        self,
+        bucket: str,
+        local_path: str,
+        prefix: str = "",
+    ) -> Generator[TransferProgress, None, None]:
+        """Upload a local directory to the bucket.
+
+        Args:
+            bucket: The bucket name.
+            local_path: The local directory path to upload.
+            prefix: The prefix (directory) to upload to in the bucket.
+
+        Yields:
+            TransferProgress objects indicating upload progress.
+        """
+        import shutil
+
+        bucket_path = self.root / bucket
+        if not bucket_path.exists():
+            raise BucketNotFoundError(f"Bucket not found: {bucket}")
+
+        # Source directory
+        src_dir = Path(local_path).expanduser()
+        if not src_dir.exists():
+            raise FileNotFoundError(f"Local directory not found: {local_path}")
+        if not src_dir.is_dir():
+            raise ValueError(f"Not a directory: {local_path}")
+
+        # Destination directory
+        dst_base = bucket_path / prefix.rstrip("/") if prefix else bucket_path
+        # Use the source directory name as the target directory name
+        dst_dir = dst_base / src_dir.name
+        dst_dir.mkdir(parents=True, exist_ok=True)
+
+        # Collect all files to transfer
+        files_to_transfer: list[Path] = []
+        total_bytes = 0
+        for src_file in src_dir.rglob("*"):
+            if src_file.is_file() and not src_file.name.startswith("."):
+                files_to_transfer.append(src_file)
+                total_bytes += src_file.stat().st_size
+
+        total_files = len(files_to_transfer)
+        transferred_bytes = 0
+
+        # Yield initial progress
+        yield TransferProgress(
+            total_files=total_files,
+            completed_files=0,
+            current_file="",
+            total_bytes=total_bytes,
+            transferred_bytes=0,
+        )
+
+        # Copy each file
+        for i, src_file in enumerate(files_to_transfer):
+            relative_path = src_file.relative_to(src_dir)
+            dst_file = dst_dir / relative_path
+
+            # Yield progress before starting this file
+            yield TransferProgress(
+                total_files=total_files,
+                completed_files=i,
+                current_file=str(relative_path),
+                total_bytes=total_bytes,
+                transferred_bytes=transferred_bytes,
+            )
+
+            # Create parent directory and copy file
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dst_file)
+
+            transferred_bytes += src_file.stat().st_size
+
+        # Yield final progress
+        yield TransferProgress(
+            total_files=total_files,
+            completed_files=total_files,
+            current_file="",
+            total_bytes=total_bytes,
+            transferred_bytes=transferred_bytes,
         )

@@ -148,3 +148,115 @@ class TestFilesystemProvider:
 
         with pytest.raises(ObjectNotFoundError):
             provider.get_object("bucket1", "nonexistent_file.txt")
+
+    def test_download_directory(self, sample_filesystem: Path, temp_dir: Path):
+        """Test downloading a directory."""
+        provider = FilesystemProvider(root=str(sample_filesystem))
+
+        # Create a destination directory
+        dest_dir = temp_dir / "downloads"
+        dest_dir.mkdir()
+
+        # Download subdir from bucket1
+        progress_list = list(provider.download_directory(
+            "bucket1", "subdir", str(dest_dir)
+        ))
+
+        # Check progress updates
+        assert len(progress_list) >= 2  # At least initial and final progress
+        final_progress = progress_list[-1]
+        assert final_progress.completed_files == final_progress.total_files
+        assert final_progress.total_files >= 1
+
+        # Check downloaded files
+        downloaded_file = dest_dir / "file3.txt"
+        assert downloaded_file.exists()
+        assert downloaded_file.read_text() == "content3"
+
+    def test_download_directory_bucket_not_found(self, sample_filesystem: Path, temp_dir: Path):
+        """Test downloading from non-existent bucket raises error."""
+        provider = FilesystemProvider(root=str(sample_filesystem))
+
+        with pytest.raises(BucketNotFoundError):
+            list(provider.download_directory("nonexistent", "subdir", str(temp_dir)))
+
+    def test_download_directory_not_found(self, sample_filesystem: Path, temp_dir: Path):
+        """Test downloading non-existent directory raises error."""
+        provider = FilesystemProvider(root=str(sample_filesystem))
+
+        with pytest.raises(ObjectNotFoundError):
+            list(provider.download_directory("bucket1", "nonexistent", str(temp_dir)))
+
+    def test_upload_directory(self, sample_filesystem: Path, temp_dir: Path):
+        """Test uploading a directory."""
+        provider = FilesystemProvider(root=str(sample_filesystem))
+
+        # Create a source directory with files to upload
+        src_dir = temp_dir / "to_upload"
+        src_dir.mkdir()
+        (src_dir / "upload1.txt").write_text("upload content 1")
+        (src_dir / "upload2.txt").write_text("upload content 2")
+
+        nested_dir = src_dir / "nested"
+        nested_dir.mkdir()
+        (nested_dir / "nested_file.txt").write_text("nested content")
+
+        # Upload to bucket1
+        progress_list = list(provider.upload_directory(
+            "bucket1", str(src_dir), ""
+        ))
+
+        # Check progress updates
+        assert len(progress_list) >= 2  # At least initial and final progress
+        final_progress = progress_list[-1]
+        assert final_progress.completed_files == final_progress.total_files
+        assert final_progress.total_files == 3  # 3 files uploaded
+
+        # Check uploaded files
+        uploaded_dir = sample_filesystem / "bucket1" / "to_upload"
+        assert uploaded_dir.exists()
+        assert (uploaded_dir / "upload1.txt").read_text() == "upload content 1"
+        assert (uploaded_dir / "upload2.txt").read_text() == "upload content 2"
+        assert (uploaded_dir / "nested" / "nested_file.txt").read_text() == "nested content"
+
+    def test_upload_directory_with_prefix(self, sample_filesystem: Path, temp_dir: Path):
+        """Test uploading a directory with a prefix."""
+        provider = FilesystemProvider(root=str(sample_filesystem))
+
+        # Create a source directory with a file
+        src_dir = temp_dir / "upload_with_prefix"
+        src_dir.mkdir()
+        (src_dir / "test.txt").write_text("test content")
+
+        # Upload to bucket1 with prefix
+        progress_list = list(provider.upload_directory(
+            "bucket1", str(src_dir), "target_dir/"
+        ))
+
+        # Check final progress
+        final_progress = progress_list[-1]
+        assert final_progress.completed_files == 1
+
+        # Check uploaded file is in the right place
+        uploaded_file = sample_filesystem / "bucket1" / "target_dir" / "upload_with_prefix" / "test.txt"
+        assert uploaded_file.exists()
+        assert uploaded_file.read_text() == "test content"
+
+    def test_upload_directory_not_found(self, sample_filesystem: Path, temp_dir: Path):
+        """Test uploading non-existent directory raises error."""
+        provider = FilesystemProvider(root=str(sample_filesystem))
+
+        with pytest.raises(FileNotFoundError):
+            list(provider.upload_directory("bucket1", str(temp_dir / "nonexistent"), ""))
+
+    def test_upload_directory_bucket_not_found(self, sample_filesystem: Path, temp_dir: Path):
+        """Test uploading to non-existent bucket raises error."""
+        provider = FilesystemProvider(root=str(sample_filesystem))
+
+        # Create a source directory
+        src_dir = temp_dir / "src"
+        src_dir.mkdir()
+        (src_dir / "file.txt").write_text("content")
+
+        with pytest.raises(BucketNotFoundError):
+            list(provider.upload_directory("nonexistent", str(src_dir), ""))

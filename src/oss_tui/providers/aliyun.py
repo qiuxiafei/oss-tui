@@ -1,8 +1,9 @@
 """Alibaba Cloud OSS provider."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from datetime import UTC, datetime
 from functools import wraps
+from pathlib import Path
 from typing import TypeVar
 
 import oss2
@@ -17,6 +18,7 @@ from oss_tui.exceptions import (
 )
 from oss_tui.models.bucket import Bucket
 from oss_tui.models.object import ListObjectsResult, Object
+from oss_tui.providers.base import TransferProgress
 
 T = TypeVar("T")
 
@@ -297,4 +299,198 @@ class AliyunOSSProvider:
             last_modified=datetime.fromtimestamp(meta.last_modified, tz=UTC),
             etag=meta.etag.strip('"') if meta.etag else None,
             content_type=meta.content_type,
+        )
+
+    def _list_all_objects(
+        self, bucket: str, prefix: str = ""
+    ) -> list[tuple[str, int]]:
+        """List all objects under a prefix recursively.
+
+        Args:
+            bucket: The bucket name.
+            prefix: The prefix to list objects under.
+
+        Returns:
+            List of tuples containing (key, size) for each object.
+        """
+        bucket_obj = self._get_bucket(bucket)
+        objects: list[tuple[str, int]] = []
+
+        marker = ""
+        while True:
+            result = bucket_obj.list_objects(
+                prefix=prefix,
+                delimiter="",  # No delimiter to get all nested objects
+                marker=marker,
+                max_keys=1000,
+            )
+
+            for obj in result.object_list:
+                # Skip directory placeholder objects
+                if not (obj.key.endswith("/") and obj.size == 0):
+                    objects.append((obj.key, obj.size))
+
+            if not result.is_truncated:
+                break
+            marker = result.next_marker
+
+        return objects
+
+    @_handle_oss_exceptions
+    def download_directory(
+        self,
+        bucket: str,
+        prefix: str,
+        local_path: str,
+    ) -> Generator[TransferProgress, None, None]:
+        """Download a directory from the bucket to a local path.
+
+        Args:
+            bucket: The bucket name.
+            prefix: The prefix (directory) to download.
+            local_path: The local directory path to save files to.
+
+        Yields:
+            TransferProgress objects indicating download progress.
+        """
+        bucket_obj = self._get_bucket(bucket)
+
+        # Destination directory
+        dst_dir = Path(local_path).expanduser()
+        dst_dir.mkdir(parents=True, exist_ok=True)
+
+        # List all objects under the prefix
+        objects = self._list_all_objects(bucket, prefix)
+        total_files = len(objects)
+        total_bytes = sum(size for _, size in objects)
+        transferred_bytes = 0
+
+        # Yield initial progress
+        yield TransferProgress(
+            total_files=total_files,
+            completed_files=0,
+            current_file="",
+            total_bytes=total_bytes,
+            transferred_bytes=0,
+        )
+
+        # Normalize prefix for relative path calculation
+        prefix_normalized = prefix.rstrip("/")
+
+        # Download each object
+        for i, (key, size) in enumerate(objects):
+            # Calculate relative path (remove prefix)
+            if prefix_normalized:
+                relative_key = key[len(prefix_normalized) :].lstrip("/")
+            else:
+                relative_key = key
+
+            dst_file = dst_dir / relative_key
+
+            # Yield progress before starting this file
+            yield TransferProgress(
+                total_files=total_files,
+                completed_files=i,
+                current_file=relative_key,
+                total_bytes=total_bytes,
+                transferred_bytes=transferred_bytes,
+            )
+
+            # Create parent directory and download file
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            obj_result = bucket_obj.get_object(key)
+            file_content = obj_result.read()
+            # oss2 lacks proper type hints; read() always returns bytes
+            dst_file.write_bytes(file_content)  # type: ignore[arg-type]
+
+            transferred_bytes += size
+
+        # Yield final progress
+        yield TransferProgress(
+            total_files=total_files,
+            completed_files=total_files,
+            current_file="",
+            total_bytes=total_bytes,
+            transferred_bytes=transferred_bytes,
+        )
+
+    @_handle_oss_exceptions
+    def upload_directory(
+        self,
+        bucket: str,
+        local_path: str,
+        prefix: str = "",
+    ) -> Generator[TransferProgress, None, None]:
+        """Upload a local directory to the bucket.
+
+        Args:
+            bucket: The bucket name.
+            local_path: The local directory path to upload.
+            prefix: The prefix (directory) to upload to in the bucket.
+
+        Yields:
+            TransferProgress objects indicating upload progress.
+        """
+        bucket_obj = self._get_bucket(bucket)
+
+        # Source directory
+        src_dir = Path(local_path).expanduser()
+        if not src_dir.exists():
+            raise FileNotFoundError(f"Local directory not found: {local_path}")
+        if not src_dir.is_dir():
+            raise ValueError(f"Not a directory: {local_path}")
+
+        # Collect all files to upload
+        files_to_upload: list[Path] = []
+        total_bytes = 0
+        for src_file in src_dir.rglob("*"):
+            if src_file.is_file() and not src_file.name.startswith("."):
+                files_to_upload.append(src_file)
+                total_bytes += src_file.stat().st_size
+
+        total_files = len(files_to_upload)
+        transferred_bytes = 0
+
+        # Yield initial progress
+        yield TransferProgress(
+            total_files=total_files,
+            completed_files=0,
+            current_file="",
+            total_bytes=total_bytes,
+            transferred_bytes=0,
+        )
+
+        # Calculate base prefix (include source directory name)
+        if prefix:
+            base_prefix = prefix.rstrip("/") + "/" + src_dir.name + "/"
+        else:
+            base_prefix = src_dir.name + "/"
+
+        # Upload each file
+        for i, src_file in enumerate(files_to_upload):
+            relative_path = src_file.relative_to(src_dir)
+            remote_key = base_prefix + str(relative_path).replace("\\", "/")
+
+            # Yield progress before starting this file
+            yield TransferProgress(
+                total_files=total_files,
+                completed_files=i,
+                current_file=str(relative_path),
+                total_bytes=total_bytes,
+                transferred_bytes=transferred_bytes,
+            )
+
+            # Upload file
+            content = src_file.read_bytes()
+            bucket_obj.put_object(remote_key, content)
+
+            transferred_bytes += src_file.stat().st_size
+
+        # Yield final progress
+        yield TransferProgress(
+            total_files=total_files,
+            completed_files=total_files,
+            current_file="",
+            total_bytes=total_bytes,
+            transferred_bytes=transferred_bytes,
         )
