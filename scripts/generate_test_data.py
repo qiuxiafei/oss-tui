@@ -205,6 +205,173 @@ services:
 """,
 ]
 
+# Log file samples
+LOG_CONTENTS = [
+    """[2024-01-15T10:00:00] INFO: Application started successfully
+[2024-01-15T10:00:01] DEBUG: Loading configuration
+[2024-01-15T10:00:02] INFO: Connected to database
+[2024-01-15T10:00:03] DEBUG: Initializing services
+[2024-01-15T10:00:04] INFO: Server listening on port 8080
+[2024-01-15T10:01:15] INFO: Processing request from 192.168.1.100
+[2024-01-15T10:01:20] DEBUG: Request completed in 5.2s
+[2024-01-15T10:02:10] WARN: High memory usage detected
+[2024-01-15T10:03:45] INFO: Scheduled task executed
+""",
+    """2024-01-15 09:30:15,320 - app - ERROR - Database connection failed
+2024-01-15 09:30:16,100 - app - ERROR - Retrying in 5 seconds
+2024-01-15 09:30:22,200 - app - ERROR - Max retries exceeded
+2024-01-15 09:30:22,250 - app - CRITICAL - Service unavailable
+2024-01-15 09:30:30,000 - app - ERROR - No such file: 'data/queue/1e2a3b4c.log'
+""",
+]
+
+# CSV data samples
+CSV_CONTENTS = [
+    """id,name,email,created_at
+1,Alice Smith,alice@example.com,2024-01-10T10:00:00Z
+2,Bob Johnson,bob@example.com,2024-01-11T11:00:00Z
+3,Charlie Brown,charlie@example.com,2024-01-12T12:00:00Z
+""",
+    """timestamp,value,sensor_id
+1705315200,23.5,TEMP_001
+1705315260,24.1,TEMP_001
+1705315320,23.8,TEMP_001
+1705315380,25.2,TEMP_001
+""",
+]
+
+# SQL sample
+SQL_CONTENTS = [
+    """-- Create users table
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert sample data
+INSERT INTO users (name, email) VALUES 
+    ('Alice', 'alice@example.com'),
+    ('Bob', 'bob@example.com');
+
+-- Create index
+CREATE INDEX idx_users_email ON users(email);
+""",
+    """-- Query example
+SELECT 
+    u.name,
+    COUNT(o.id) as order_count,
+    SUM(o.amount) as total_amount
+FROM users u
+LEFT JOIN orders o ON u.id = o.user_id
+WHERE o.created_at >= '2024-01-01'
+GROUP BY u.id
+ORDER BY total_amount DESC
+LIMIT 10;
+""",
+]
+
+# HTML sample
+HTML_CONTENTS = [
+    """<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>Hello, World!</h1>
+    <p>This is a test HTML page.</p>
+</body>
+</html>
+""",
+    """<!DOCTYPE html>
+<html>
+<head>
+    <title>Table Example</title>
+</head>
+<body>
+    <table>
+        <tr><th>ID</th><th>Name</th><th>Value</th></tr>
+        <tr><td>1</td><td>Item A</td><td>100</td></tr>
+        <tr><td>2</td><td>Item B</td><td>200</td></tr>
+    </table>
+</body>
+</html>
+""",
+]
+
+# Java code sample
+JAVA_CONTENTS = [
+    '''// User class
+public class User {
+    private int id;
+    private String name;
+    
+    public User(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+    
+    public int getId() { return id; }
+    public String getName() { return name; }
+}
+''',
+    '''// Main class
+import java.util.*;
+import java.util.stream.*;
+
+public class App {
+    public static void main(String[] args) {
+        List<User> users = Arrays.asList(
+            new User(1, "Alice"),
+            new User(2, "Bob"),
+            new User(3, "Charlie")
+        );
+        
+        users.stream()
+            .filter(u -> u.getId() > 1)
+            .forEach(u -> System.out.println(u.getName()));
+    }
+}
+''',
+]
+
+# C++ code sample
+CPP_CONTENTS = [
+    '''// Sample class
+#include <iostream>
+#include <vector>
+
+class Calculator {
+public:
+    int add(int a, int b) { return a + b; }
+    int multiply(int a, int b) { return a * b; }
+};
+
+int main() {
+    Calculator calc;
+    std::cout << "5 + 3 = " << calc.add(5, 3) << std::endl;
+    return 0;
+}
+''',
+    '''// Template example
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+template<typename T>
+T findMax(const std::vector<T>& vec) {
+    if (vec.empty()) return T{};
+    return *std::max_element(vec.begin(), vec.end());
+}
+''',
+]
+
 # Markdown samples
 MARKDOWN_SAMPLES = [
     """# Project README
@@ -371,7 +538,64 @@ def create_image_placeholder(path: Path) -> None:
     create_binary_file(path, size)
 
 
-# File type generators
+def create_log_file(path: Path) -> None:
+    """Create a log file with sample content."""
+    content = random.choice(LOG_CONTENTS)
+    path.write_text(content, encoding="utf-8")
+
+
+def create_csv_file(path: Path) -> None:
+    """Create a CSV file with sample data."""
+    content = random.choice(CSV_CONTENTS)
+    path.write_text(content, encoding="utf-8")
+
+
+def create_sql_file(path: Path) -> None:
+    """Create a SQL file with sample queries."""
+    content = random.choice(SQL_CONTENTS)
+    path.write_text(content, encoding="utf-8")
+
+
+def create_html_file(path: Path) -> None:
+    """Create a HTML file with sample content."""
+    content = random.choice(HTML_CONTENTS)
+    path.write_text(content, encoding="utf-8")
+
+
+def create_java_file(path: Path) -> None:
+    """Create a Java file with sample code."""
+    content = random.choice(JAVA_CONTENTS)
+    path.write_text(content, encoding="utf-8")
+
+
+def create_cpp_file(path: Path) -> None:
+    """Create a C++ file with sample code."""
+    content = random.choice(CPP_CONTENTS)
+    path.write_text(content, encoding="utf-8")
+
+
+def create_tiny_file(path: Path) -> None:
+    """Create a very small file."""
+    if path.suffix in [".txt", ".md"]:
+        content = f"# {path.stem}\n\nA very small {path.suffix[1:].upper()} file."
+        path.write_text(content, encoding="utf-8")
+    else:
+        # 1-5 个字符/字节的极小文件
+        if path.suffix in [".json", ".log", ".js", ".py"]:
+            path.write_text("void", encoding="utf-8")
+        else:
+            path.write_bytes(b"\x00" * random.randint(1, 5))
+
+
+def create_huge_binary(path: Path) -> None:
+    """Create a relatively large binary file for testing larger uploads."""
+    # 1MB - 10MB
+    size = random.randint(1024 * 1024, 10 * 1024 * 1024)
+    content = generate_binary_content(size)
+    path.write_bytes(content)
+
+
+# Extended file type generators
 FILE_GENERATORS = {
     ".txt": create_text_file,
     ".py": create_python_file,
@@ -380,11 +604,151 @@ FILE_GENERATORS = {
     ".yaml": create_yaml_file,
     ".yml": create_yaml_file,
     ".md": create_markdown_file,
+    ".log": create_log_file,
+    ".csv": create_csv_file,
+    ".sql": create_sql_file,
+    ".html": create_html_file,
+    ".htm": create_html_file,
+    ".java": create_java_file,
+    ".cpp": create_cpp_file,
+    ".cc": create_cpp_file,
+    ".h": create_cpp_file,
+    ".hpp": create_cpp_file,
     ".bin": create_binary_file,
     ".dat": create_binary_file,
+    ".tmp": create_binary_file,
+    ".cache": create_binary_file,
     ".png": create_image_placeholder,
     ".jpg": create_image_placeholder,
+    ".jpeg": create_image_placeholder,
+    ".gif": create_image_placeholder,
+    ".ico": create_image_placeholder,
+    ".tiff": create_image_placeholder,
+    ".mp3": create_huge_binary,  # 大文件
+    ".mp4": create_huge_binary,  # 大文件
+    ".avi": create_huge_binary,  # 大文件
 }
+
+# Random file name components for different directories
+FILE_NAME_TEMPLATES = {
+    "documents": [
+        "report_{year}_{month}",
+        "summary_{date}",
+        "notes_{date}",
+        "meeting_{date}",
+        "agenda_{date}",
+        "briefing_{date}",
+        "review_{date}",
+        "analysis_{date}",
+        "feedback_{date}",
+        "approval_{date}",
+    ],
+    "src": [
+        "module_{num}",
+        "helper_{num}",
+        "util_{num}",
+        "service_{num}",
+        "manager_{num}",
+        "controller_{num}",
+        "model_{num}",
+        "repository_{num}",
+        "factory_{num}",
+        "processor_{num}",
+    ],
+    "data": [
+        "data_{num}",
+        "dataset_{num}",
+        "cache_{num}",
+        "temp_{num}",
+        "batch_{num}",
+        "chunk_{num}",
+        "segment_{num}",
+        "block_{num}",
+        "record_{num}",
+        "entry_{num}",
+    ],
+    "config": [
+        "config_{env}",
+        "settings_{env}",
+        "parameters_{env}",
+        "options_{env}",
+        "preferences_{env}",
+        "properties_{env}",
+    ],
+}
+
+# File extensions by directory type (with weights - higher = more common)
+DIRECTORY_FILE_TYPES = {
+    "documents": [
+        (".txt", 30),
+        (".md", 20),
+        (".pdf", 10),
+        (".docx", 5),
+        (".log", 15),
+        (".csv", 10),
+        (".json", 10),
+    ],
+    "src": [
+        (".py", 20),
+        (".js", 20),
+        (".java", 15),
+        (".cpp", 10),
+        (".h", 10),
+        (".json", 10),
+        (".yml", 10),
+        (".yaml", 5),
+    ],
+    "data": [
+        (".json", 20),
+        (".csv", 20),
+        (".bin", 20),
+        (".dat", 15),
+        (".tmp", 10),
+        (".cache", 10),
+        (".png", 5),
+        (".jpg", 5),
+        (".mp3", 3),
+        (".mp4", 2),
+    ],
+    "config": [
+        (".json", 30),
+        (".yaml", 25),
+        (".yml", 25),
+        (".ini", 10),
+        (".toml", 10),
+    ],
+    "default": [
+        (".txt", 30),
+        (".md", 20),
+        (".json", 20),
+        (".log", 15),
+        (".csv", 15),
+    ],
+}
+
+# All available file extensions (for root and other general files)
+ALL_FILE_EXTENSIONS = [
+    ".txt",
+    ".md",
+    ".log",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".py",
+    ".js",
+    ".html",
+    ".sql",
+    ".csv",
+    ".java",
+    ".cpp",
+    ".h",
+    ".bin",
+    ".dat",
+    ".png",
+    ".jpg",
+    ".mp3",
+    ".mp4",
+]
 
 # Files to create in specific directories
 DIRECTORY_FILES = {
@@ -484,12 +848,126 @@ def create_files(base_path: Path) -> int:
     return file_count
 
 
+def generate_random_filename(dir_type: str, counter: int) -> str:
+    """Generate a random filename based on directory type."""
+    templates = FILE_NAME_TEMPLATES.get(dir_type, FILE_NAME_TEMPLATES["documents"])
+    template = random.choice(templates)
+
+    # Replace placeholders
+    filename = template
+    if "{year}" in filename:
+        filename = filename.replace("{year}", str(random.randint(2020, 2024)))
+    if "{month}" in filename:
+        filename = filename.replace("{month}", f"{random.randint(1, 12):02d}")
+    if "{date}" in filename:
+        filename = filename.replace("{date}", f"{random.randint(1, 31):02d}_{random.randint(1, 12):02d}")
+    if "{num}" in filename:
+        filename = filename.replace("{num}", f"{counter:03d}")
+    if "{env}" in filename:
+        env = random.choice(["dev", "prod", "staging", "test", "qa", "uat"])
+        filename = filename.replace("{env}", env)
+
+    # Choose extension
+    ext_weights = DIRECTORY_FILE_TYPES.get(dir_type, DIRECTORY_FILE_TYPES["default"])
+    extensions = [ext for ext, weight in ext_weights for _ in range(weight)]
+    extension = random.choice(extensions)
+
+    return filename + extension
+
+
+def generate_general_filename(counter: int) -> str:
+    """Generate a general filename for root or mixed directories."""
+    prefixes = [
+        "file",
+        "document",
+        "note",
+        "backup",
+        "archive",
+        "temp",
+        "export",
+        "import",
+        "log",
+        "data",
+        "config",
+        "settings",
+        "cache",
+        "session",
+        "token",
+        "profile",
+    ]
+    prefix = random.choice(prefixes)
+    extension = random.choice(ALL_FILE_EXTENSIONS)
+    return f"{prefix}_{counter:03d}{extension}"
+
+
+def create_random_files(base_path: Path, target_count: int, existing_count: int) -> int:
+    """Create additional random files to reach target count."""
+    file_count = existing_count
+    max_attempts = (target_count - existing_count) * 3  # 防止无限循环
+    attempts = 0
+
+    # Get all directories in the structure
+    all_dirs = [str(p.relative_to(base_path)) for p in base_path.rglob("*") if p.is_dir()]
+    if not all_dirs:
+        all_dirs = ["."]
+
+    while file_count < target_count and attempts < max_attempts:
+        attempts += 1
+
+        # Choose a random directory
+        rel_dir = random.choice(all_dirs)
+        dir_path = base_path / rel_dir
+
+        # Determine directory type for file generation
+        dir_type = "default"
+        if "documents" in rel_dir:
+            dir_type = "documents"
+        elif "src" in rel_dir or "lib" in rel_dir or "components" in rel_dir:
+            dir_type = "src"
+        elif "data" in rel_dir:
+            dir_type = "data"
+        elif "config" in rel_dir:
+            dir_type = "config"
+
+        # Generate filename
+        if rel_dir == ".":
+            filename = generate_general_filename(file_count + 1)
+        else:
+            filename = generate_random_filename(dir_type, file_count + 1)
+
+        file_path = dir_path / filename
+
+        # Skip if file already exists
+        if file_path.exists():
+            continue
+
+        # Create the file
+        ext = file_path.suffix.lower()
+        generator = FILE_GENERATORS.get(ext, create_text_file)
+
+        try:
+            generator(file_path)
+            file_count += 1
+            if file_count % 10 == 0:
+                print(f"  Progress: {file_count}/{target_count} files created...")
+        except Exception as e:
+            print(f"  Warning: Failed to create {file_path}: {e}")
+            continue
+
+    return file_count
+
+
 def create_root_files(base_path: Path) -> int:
     """Create some files in the root directory."""
     root_files = [
         "README.md",
         "config.json",
         ".gitignore",
+        "LICENSE",
+        "requirements.txt",
+        "package.json",
+        "Dockerfile",
+        ".env.example",
     ]
 
     file_count = 0
@@ -506,6 +984,67 @@ __pycache__/
 .venv/
 node_modules/
 *.log
+*.tmp
+.cache/
+dist/
+build/
+""",
+                encoding="utf-8",
+            )
+        elif filename == "LICENSE":
+            file_path.write_text(
+                """MIT License
+
+Copyright (c) 2024 Test Project
+
+Permission is hereby granted...
+""",
+                encoding="utf-8",
+            )
+        elif filename == "requirements.txt":
+            file_path.write_text(
+                """textual>=0.47.0
+pydantic>=2.0.0
+oss2>=2.18.0
+pytest>=8.0.0
+""",
+                encoding="utf-8",
+            )
+        elif filename == "package.json":
+            file_path.write_text(
+                """{
+  "name": "test-project",
+  "version": "1.0.0",
+  "description": "A test project",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "start": "node index.js"
+  }
+}
+""",
+                encoding="utf-8",
+            )
+        elif filename == "Dockerfile":
+            file_path.write_text(
+                """FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+CMD ["python", "app.py"]
+""",
+                encoding="utf-8",
+            )
+        elif filename == ".env.example":
+            file_path.write_text(
+                """# Environment variables
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=mydb
+API_KEY=your_api_key_here
 """,
                 encoding="utf-8",
             )
@@ -519,12 +1058,17 @@ node_modules/
     return file_count
 
 
-def generate_test_directory(output_path: str | Path, seed: int | None = None) -> None:
+def generate_test_directory(
+    output_path: str | Path,
+    seed: int | None = None,
+    target_file_count: int = 150,
+) -> None:
     """Generate a complete test directory structure.
 
     Args:
         output_path: Path where the test directory will be created.
         seed: Random seed for reproducible generation.
+        target_file_count: Target number of files to create (100-200 recommended).
     """
     if seed is not None:
         random.seed(seed)
@@ -538,20 +1082,32 @@ def generate_test_directory(output_path: str | Path, seed: int | None = None) ->
             print("Aborted.")
             return
 
-    print(f"\nGenerating test directory at: {base_path.absolute()}\n")
+    print(f"\n{'=' * 60}")
+    print(f"Generating test directory at: {base_path.absolute()}")
+    print(f"Target file count: {target_file_count}")
+    print(f"{'=' * 60}\n")
 
     # Create directory structure
     print("Creating directory structure...")
     base_path.mkdir(parents=True, exist_ok=True)
     create_directory_structure(base_path, DIRECTORY_STRUCTURE)
+    print("  Directory structure created.\n")
 
     # Create files
-    print("\nCreating files...")
+    print("Creating fixed files...")
     file_count = create_root_files(base_path)
     file_count += create_files(base_path)
+    print(f"  Created {file_count} fixed files.\n")
+
+    # Create additional random files if needed
+    if file_count < target_file_count:
+        additional_needed = target_file_count - file_count
+        print(f"Creating {additional_needed} additional random files...")
+        file_count = create_random_files(base_path, target_file_count, file_count)
+        print()
 
     # Summary
-    print(f"\n{'=' * 50}")
+    print(f"{'=' * 60}")
     print("Test directory generated successfully!")
     print(f"  Location: {base_path.absolute()}")
     print(f"  Total files created: {file_count}")
@@ -559,7 +1115,25 @@ def generate_test_directory(output_path: str | Path, seed: int | None = None) ->
     # Count directories
     dir_count = sum(1 for _ in base_path.rglob("*") if _.is_dir())
     print(f"  Total directories: {dir_count}")
-    print(f"{'=' * 50}")
+
+    # Calculate average files per directory
+    avg_files = file_count / dir_count if dir_count > 0 else 0
+    print(f"  Average files per directory: {avg_files:.1f}")
+
+    # Show file type distribution
+    ext_counts = {}
+    for file_path in base_path.rglob("*"):
+        if file_path.is_file():
+            ext = file_path.suffix.lower()
+            ext_counts[ext] = ext_counts.get(ext, 0) + 1
+
+    print(f"  File type distribution (top 5):")
+    sorted_exts = sorted(ext_counts.items(), key=lambda x: x[1], reverse=True)
+    for ext, count in sorted_exts[:5]:
+        percentage = (count / file_count) * 100
+        print(f"    {ext or 'no ext'}: {count} files ({percentage:.1f}%)")
+
+    print(f"{'=' * 60}")
 
 
 def main() -> None:
@@ -569,9 +1143,10 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s                          # Create in ./test_data
+  %(prog)s                          # Create in ./test_data with ~150 files
   %(prog)s -o /tmp/oss_test         # Create in /tmp/oss_test
   %(prog)s --seed 42                # Use fixed seed for reproducibility
+  %(prog)s --file-count 200         # Create exactly 200 files
 """,
     )
     parser.add_argument(
@@ -587,9 +1162,15 @@ Examples:
         default=None,
         help="Random seed for reproducible generation",
     )
+    parser.add_argument(
+        "--file-count",
+        type=int,
+        default=150,
+        help="Target number of files to create (default: 150, recommended: 100-200)",
+    )
 
     args = parser.parse_args()
-    generate_test_directory(args.output, args.seed)
+    generate_test_directory(args.output, args.seed, args.file_count)
 
 
 if __name__ == "__main__":
