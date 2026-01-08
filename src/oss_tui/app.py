@@ -12,7 +12,7 @@ from oss_tui.config.settings import AppConfig
 from oss_tui.providers import create_provider
 from oss_tui.providers.factory import OSSProviderProtocol
 from oss_tui.ui.modals.confirm import ConfirmModal
-from oss_tui.ui.modals.input import InputModal
+from oss_tui.ui.modals.path_input import PathInputModal
 from oss_tui.ui.modals.preview import MAX_PREVIEW_SIZE, PreviewModal
 from oss_tui.ui.widgets.bucket_list import BucketList
 from oss_tui.ui.widgets.file_list import FileList
@@ -420,10 +420,10 @@ class OssTuiApp(App):
             self._do_download(obj.key, path)
 
         self.push_screen(
-            InputModal(
+            PathInputModal(
                 prompt=f"Download '{obj.name}' to:",
                 default=default_path,
-                placeholder="Enter local file path",
+                placeholder="Enter local file path (Tab to complete)",
             ),
             handle_download_path,
         )
@@ -471,10 +471,10 @@ class OssTuiApp(App):
             self._do_upload(path, event.current_path)
 
         self.push_screen(
-            InputModal(
+            PathInputModal(
                 prompt="Upload file from:",
                 default="",
-                placeholder="Enter local file path",
+                placeholder="Enter local file path (Tab to complete)",
             ),
             handle_upload_path,
         )

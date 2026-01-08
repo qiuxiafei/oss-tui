@@ -1,11 +1,15 @@
 """Tests for modal dialogs."""
 
+import tempfile
+from pathlib import Path
+
 import pytest
 from textual.app import App
 from textual.widgets import Button, Input
 
 from oss_tui.ui.modals.confirm import ConfirmModal
 from oss_tui.ui.modals.input import InputModal
+from oss_tui.ui.modals.path_input import PathInput, PathInputModal
 
 
 class ConfirmModalApp(App):
@@ -84,3 +88,127 @@ class TestInputModal:
         async with app.run_test() as pilot:
             input_widget = pilot.app.query_one(Input)
             assert input_widget.placeholder == "Type something..."
+
+
+class PathInputModalApp(App):
+    """Test app for PathInputModal."""
+
+    CSS = """
+    Screen {
+        align: center middle;
+    }
+    """
+
+    def __init__(self, default: str = "", **kwargs):
+        super().__init__(**kwargs)
+        self._default = default
+
+    def compose(self):
+        yield PathInputModal(
+            prompt="Select path:",
+            default=self._default,
+            placeholder="Type path...",
+        )
+
+
+class TestPathInputModal:
+    """Test cases for PathInputModal."""
+
+    @pytest.mark.asyncio
+    async def test_modal_has_path_input(self):
+        """Test that modal has path input field."""
+        app = PathInputModalApp()
+        async with app.run_test() as pilot:
+            input_widget = pilot.app.query_one(PathInput)
+            assert input_widget is not None
+
+    @pytest.mark.asyncio
+    async def test_modal_has_default_value(self):
+        """Test that modal preserves default value."""
+        app = PathInputModalApp(default="/tmp/test")
+        async with app.run_test() as pilot:
+            input_widget = pilot.app.query_one(PathInput)
+            assert input_widget.value == "/tmp/test"
+
+    @pytest.mark.asyncio
+    async def test_modal_has_hint(self):
+        """Test that modal shows completion hint."""
+        app = PathInputModalApp()
+        async with app.run_test() as pilot:
+            from textual.widgets import Static
+
+            hint = pilot.app.query_one("#path-hint", Static)
+            # Check the hint widget exists
+            assert hint is not None
+
+
+class TestPathInput:
+    """Test cases for PathInput path completion logic."""
+
+    def test_get_completions_empty(self):
+        """Test completions for empty path returns home directory contents."""
+        path_input = PathInput()
+        # Empty path should start from home
+        completions = path_input._get_completions("")
+        # Should return items from home directory
+        assert isinstance(completions, list)
+
+    def test_get_completions_directory(self):
+        """Test completions for directory path."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create some test files
+            Path(tmpdir, "file1.txt").touch()
+            Path(tmpdir, "file2.txt").touch()
+            Path(tmpdir, "subdir").mkdir()
+
+            path_input = PathInput()
+            completions = path_input._get_completions(tmpdir + "/")
+
+            assert len(completions) == 3
+            names = [p.name for p in completions]
+            assert "file1.txt" in names
+            assert "file2.txt" in names
+            assert "subdir" in names
+
+    def test_get_completions_partial_match(self):
+        """Test completions for partial filename match."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create some test files
+            Path(tmpdir, "apple.txt").touch()
+            Path(tmpdir, "apricot.txt").touch()
+            Path(tmpdir, "banana.txt").touch()
+
+            path_input = PathInput()
+            completions = path_input._get_completions(tmpdir + "/ap")
+
+            assert len(completions) == 2
+            names = [p.name for p in completions]
+            assert "apple.txt" in names
+            assert "apricot.txt" in names
+            assert "banana.txt" not in names
+
+    def test_get_completions_nonexistent_directory(self):
+        """Test completions for nonexistent directory."""
+        path_input = PathInput()
+        completions = path_input._get_completions("/nonexistent/path/")
+        assert completions == []
+
+    def test_format_path_file(self):
+        """Test format_path for regular file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir, "test.txt")
+            file_path.touch()
+
+            path_input = PathInput()
+            formatted = path_input._format_path(file_path)
+            assert not formatted.endswith("/")
+
+    def test_format_path_directory(self):
+        """Test format_path adds trailing slash for directories."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dir_path = Path(tmpdir, "subdir")
+            dir_path.mkdir()
+
+            path_input = PathInput()
+            formatted = path_input._format_path(dir_path)
+            assert formatted.endswith("/")
